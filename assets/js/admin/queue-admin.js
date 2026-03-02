@@ -26,10 +26,14 @@ import '../../css/admin/queue-admin.css';
 		queueEmpty:     document.getElementById( 'wpkq-queue-empty' ),
 		queueCount:     document.getElementById( 'wpkq-queue-count' ),
 
-		// Pending table
 		pendingTbody:   document.getElementById( 'wpkq-pending-tbody' ),
 		pendingEmpty:   document.getElementById( 'wpkq-pending-empty' ),
 		pendingCount:   document.getElementById( 'wpkq-pending-count' ),
+
+		// Finished table
+		finishedCount:  document.getElementById( 'wpkq-finished-count' ),
+		finishedTbody:  document.getElementById( 'wpkq-finished-tbody' ),
+		finishedEmpty:  document.getElementById( 'wpkq-finished-empty' ),
 
 		// Modal
 		modal:          document.getElementById( 'wpkq-modal' ),
@@ -40,6 +44,16 @@ import '../../css/admin/queue-admin.css';
 		editName:       document.getElementById( 'wpkq-edit-name' ),
 		editSong:       document.getElementById( 'wpkq-edit-song' ),
 		editArtist:     document.getElementById( 'wpkq-edit-artist' ),
+
+		// Add Singer modal
+		addSingerBtn:    document.getElementById( 'wpkq-add-singer-btn' ),
+		addModal:        document.getElementById( 'wpkq-add-modal' ),
+		addModalClose:   document.getElementById( 'wpkq-add-modal-close' ),
+		addModalCancel:  document.getElementById( 'wpkq-add-modal-cancel' ),
+		addModalSave:    document.getElementById( 'wpkq-add-modal-save' ),
+		addName:         document.getElementById( 'wpkq-add-name' ),
+		addSong:         document.getElementById( 'wpkq-add-song' ),
+		addArtist:       document.getElementById( 'wpkq-add-artist' ),
 	};
 
 	const { apiBase, nonce, venueSlug, i18n } = wpkqAdmin;
@@ -164,6 +178,7 @@ import '../../css/admin/queue-admin.css';
 	function renderAll() {
 		renderQueueTable();
 		renderPendingTable();
+		renderFinishedTable();
 	}
 
 	/**
@@ -273,6 +288,37 @@ import '../../css/admin/queue-admin.css';
 		` ).join( '' );
 	}
 
+	/**
+	 * Render the finished table (status: finished).
+	 */
+	function renderFinishedTable() {
+		const singers = queue
+			.map( ( s, i ) => ( { singer: s, index: i } ) )
+			.filter( ( { singer } ) => singer.status === 'finished' );
+
+		console.log(singers);
+
+		el.finishedCount.textContent = singers.length;
+
+		if ( 0 === singers.length ) {
+			el.finishedTbody.innerHTML = '';
+			el.finishedEmpty.style.display = '';
+			return;
+		}
+
+		el.finishedEmpty.style.display = 'none';
+
+		el.finishedTbody.innerHTML = singers.map( ( { singer, index } ) => `
+			<tr class="wpkq-row" data-index="${ index }">
+				<td class="wpkq-col-name" data-label="Name">${ escHtml( singer.singer_name ) }</td>
+				<td class="wpkq-col-song" data-label="Song">${ escHtml( singer.song ) }</td>
+				<td class="wpkq-col-artist" data-label="Artist">${ escHtml( singer.artist ) }</td>
+				<td class="wpkq-col-time" data-label="Signed Up">${ formatTime( singer.signup_time ) }</td>
+				<td class="wpkq-col-actions"></td>
+			</tr>
+		` ).join( '' );
+	}
+
 	// ─── SortableJS ───────────────────────────────────────────────────────────
 
 	/**
@@ -357,6 +403,53 @@ import '../../css/admin/queue-admin.css';
 		}
 	}
 
+	// ─── Add Singer Modal ─────────────────────────────────────────────────────
+
+	/**
+	 * Open the Add Singer modal.
+	 */
+	function openAddModal() {
+		el.addName.value   = '';
+		el.addSong.value   = '';
+		el.addArtist.value = '';
+
+		el.addModal.style.display = '';
+		el.addModal.removeAttribute( 'hidden' );
+		el.addName.focus();
+	}
+
+	/**
+	 * Close the Add Singer modal.
+	 */
+	function closeAddModal() {
+		el.addModal.style.display = 'none';
+	}
+
+	/**
+	 * Save the new singer from the Add Singer modal.
+	 */
+	function saveAddModal() {
+		const name = el.addName.value.trim().substring( 0, 50 );
+
+		if ( ! name ) {
+			el.addName.focus();
+			return;
+		}
+
+		const newSinger = {
+			singer_name:    name,
+			song:           el.addSong.value.trim().substring( 0, 50 ),
+			artist:         el.addArtist.value.trim().substring( 0, 50 ),
+			signup_time:    Math.floor( Date.now() / 1000 ),
+			completed_time: 0,
+			status:         'in-the-queue',
+		};
+
+		queue.push( newSinger );
+		closeAddModal();
+		saveQueue();
+	}
+
 	// ─── Edit Modal ───────────────────────────────────────────────────────────
 
 	/**
@@ -419,6 +512,26 @@ import '../../css/admin/queue-admin.css';
 		el.queueTbody.addEventListener( 'click', handleTableClick );
 		el.pendingTbody.addEventListener( 'click', handleTableClick );
 
+		// Add Singer modal.
+		el.addSingerBtn.addEventListener( 'click', openAddModal );
+		el.addModalClose.addEventListener( 'click', closeAddModal );
+		el.addModalCancel.addEventListener( 'click', closeAddModal );
+		el.addModalSave.addEventListener( 'click', saveAddModal );
+
+		el.addModal.addEventListener( 'click', function ( e ) {
+			if ( e.target === el.addModal ) {
+				closeAddModal();
+			}
+		} );
+
+		[ el.addName, el.addSong, el.addArtist ].forEach( function ( input ) {
+			input.addEventListener( 'keydown', function ( e ) {
+				if ( 'Enter' === e.key ) {
+					saveAddModal();
+				}
+			} );
+		} );
+
 		// Modal.
 		el.modalClose.addEventListener( 'click', closeEditModal );
 		el.modalCancel.addEventListener( 'click', closeEditModal );
@@ -431,10 +544,15 @@ import '../../css/admin/queue-admin.css';
 			}
 		} );
 
-		// Close modal on Escape key.
+		// Close modals on Escape key.
 		document.addEventListener( 'keydown', function ( e ) {
-			if ( 'Escape' === e.key && el.modal.style.display !== 'none' ) {
-				closeEditModal();
+			if ( 'Escape' === e.key ) {
+				if ( el.modal.style.display !== 'none' ) {
+					closeEditModal();
+				}
+				if ( el.addModal.style.display !== 'none' ) {
+					closeAddModal();
+				}
 			}
 		} );
 

@@ -98,6 +98,7 @@ class Queue_Admin {
 					'confirmFinished' => __( 'Mark this singer as finished? This cannot be undone.', 'wp-karaoke' ),
 					'confirmDelete'   => __( 'Remove this singer from the queue? This cannot be undone.', 'wp-karaoke' ),
 					'saving'          => __( 'Saving...', 'wp-karaoke' ),
+					'loading'         => __( 'Loading...', 'wp-karaoke' ),
 					'saveError'       => __( 'Error saving queue. Please try again.', 'wp-karaoke' ),
 					'loadError'       => __( 'Error loading queue. Please refresh the page.', 'wp-karaoke' ),
 				),
@@ -147,7 +148,12 @@ class Queue_Admin {
 					);
 					?>
 				</h1>
-				<div class="wpkq-save-status" id="wpkq-save-status" aria-live="polite"></div>
+				<div class="wpkq-header-right">
+					<button class="wpkq-btn wpkq-btn--primary wpkq-btn--add-singer" id="wpkq-add-singer-btn">
+						+ <?php esc_html_e( 'Add Singer', 'wp-karaoke' ); ?>
+					</button>
+					<div class="wpkq-save-status" id="wpkq-save-status" aria-live="polite"></div>
+				</div>
 			</div>
 
 			<div class="wpkq-loading" id="wpkq-loading">
@@ -214,7 +220,63 @@ class Queue_Admin {
 						</p>
 					</div>
 				</section>
+
+				<!-- Finished Table -->
+				<section class="wpkq-section">
+					<h2 class="wpkq-section-title">
+						<span class="wpkq-badge wpkq-badge--finished" id="wpkq-finished-count">0</span>
+						<?php esc_html_e( 'Finished', 'wp-karaoke' ); ?>
+					</h2>
+					<div class="wpkq-table-wrap">
+						<table class="wpkq-table" id="wpkq-finished-table">
+							<thead>
+								<tr>
+									<th class="wpkq-col-name"><?php esc_html_e( 'Name', 'wp-karaoke' ); ?></th>
+									<th class="wpkq-col-song"><?php esc_html_e( 'Song', 'wp-karaoke' ); ?></th>
+									<th class="wpkq-col-artist"><?php esc_html_e( 'Artist', 'wp-karaoke' ); ?></th>
+									<th class="wpkq-col-time"><?php esc_html_e( 'Signed Up', 'wp-karaoke' ); ?></th>
+									<th class="wpkq-col-actions"><?php esc_html_e( 'Actions', 'wp-karaoke' ); ?></th>
+								</tr>
+							</thead>
+							<tbody id="wpkq-finished-tbody">
+								<!-- Populated by JS -->
+							</tbody>
+						</table>
+						<p class="wpkq-empty-msg" id="wpkq-finished-empty" style="display:none;">
+							<?php esc_html_e( 'No finished singers yet.', 'wp-karaoke' ); ?>
+						</p>
+					</div>
+				</section>
+
 			</div><!-- /.wpkq-content -->
+
+			<!-- Add Singer Modal -->
+			<div class="wpkq-modal-overlay" id="wpkq-add-modal" role="dialog" aria-modal="true" aria-labelledby="wpkq-add-modal-title" style="display:none;">
+				<div class="wpkq-modal">
+					<div class="wpkq-modal-header">
+						<h2 class="wpkq-modal-title" id="wpkq-add-modal-title"><?php esc_html_e( 'Add Singer', 'wp-karaoke' ); ?></h2>
+						<button class="wpkq-modal-close" id="wpkq-add-modal-close" aria-label="<?php esc_attr_e( 'Close', 'wp-karaoke' ); ?>">&times;</button>
+					</div>
+					<div class="wpkq-modal-body">
+						<div class="wpkq-field">
+							<label for="wpkq-add-name"><?php esc_html_e( 'Singer Name', 'wp-karaoke' ); ?></label>
+							<input type="text" id="wpkq-add-name" maxlength="50" autocomplete="off">
+						</div>
+						<div class="wpkq-field">
+							<label for="wpkq-add-song"><?php esc_html_e( 'Song', 'wp-karaoke' ); ?></label>
+							<input type="text" id="wpkq-add-song" maxlength="50" autocomplete="off">
+						</div>
+						<div class="wpkq-field">
+							<label for="wpkq-add-artist"><?php esc_html_e( 'Artist', 'wp-karaoke' ); ?></label>
+							<input type="text" id="wpkq-add-artist" maxlength="50" autocomplete="off">
+						</div>
+					</div>
+					<div class="wpkq-modal-footer">
+						<button class="wpkq-btn wpkq-btn--secondary" id="wpkq-add-modal-cancel"><?php esc_html_e( 'Cancel', 'wp-karaoke' ); ?></button>
+						<button class="wpkq-btn wpkq-btn--primary" id="wpkq-add-modal-save"><?php esc_html_e( 'Add to Queue', 'wp-karaoke' ); ?></button>
+					</div>
+				</div>
+			</div>
 
 			<!-- Edit Modal -->
 			<div class="wpkq-modal-overlay" id="wpkq-modal" role="dialog" aria-modal="true" aria-labelledby="wpkq-modal-title" style="display:none;">

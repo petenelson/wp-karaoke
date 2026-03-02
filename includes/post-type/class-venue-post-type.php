@@ -7,6 +7,8 @@
 
 namespace WPKQ\Post_Type;
 
+use WPKQ\REST\Queue_Rest_Controller;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -40,6 +42,8 @@ class Venue_Post_Type {
 		add_action( 'init', array( $this, 'register_post_meta' ) );
 		add_filter( 'manage_' . self::POST_TYPE . '_posts_columns', array( $this, 'add_admin_columns' ) );
 		add_action( 'manage_' . self::POST_TYPE . '_posts_custom_column', array( $this, 'render_admin_column' ), 10, 2 );
+		add_filter( 'template_include', array( $this, 'load_single_template' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
 	}
 
 	/**
@@ -62,13 +66,13 @@ class Venue_Post_Type {
 
 		$args = array(
 			'labels'              => $labels,
-			'public'              => false,
-			'publicly_queryable'  => false,
+			'public'              => true,
+			'publicly_queryable'  => true,
 			'show_ui'             => true,
 			'show_in_menu'        => true,
 			'menu_label'          => __( 'Karaoke', 'wp-karaoke' ),
 			'query_var'           => false,
-			'rewrite'             => false,
+			'rewrite'             => array( 'slug' => 'karaoke' ),
 			'capability_type'     => 'post',
 			'has_archive'         => false,
 			'hierarchical'        => false,
@@ -192,5 +196,29 @@ class Venue_Post_Type {
 	 */
 	public static function save_queue( $post_id, $queue ) {
 		return update_post_meta( $post_id, self::META_KEY, wp_json_encode( $queue ) );
+	}
+
+	public function load_single_template( $template ) {
+		if ( is_singular( self::POST_TYPE ) ) {
+			$custom_template = WPKQ_PLUGIN_DIR . '/templates/single-queue.php';
+			if ( file_exists( $custom_template ) ) {
+				return $custom_template;
+			}
+		}
+		return $template;
+	}
+
+	/**
+	 * Enqueue frontend assets for the queue page.
+	 */
+	public function enqueue_frontend_assets() {
+		if ( is_singular( self::POST_TYPE ) ) {
+			wp_enqueue_style( 'wpkq-queue-style', WPKQ_PLUGIN_URL . 'dist/css/frontend.css', array(), WPKQ_VERSION );
+			wp_enqueue_script( 'wpkq-queue-script', WPKQ_PLUGIN_URL . 'dist/js/frontend.js', array(), WPKQ_VERSION, true );
+			wp_localize_script( 'wpkq-queue-script', 'WPKQ_Queue_Data', array(
+				'rest_url' => '', // esc_url_raw( rest_url( Queue_Rest_Controller::REST_NAMESPACE . Queue_Rest_Controller::ROUTE ) ),
+				'slug'     => get_post_field( 'post_name', get_the_ID() ),
+			) );
+		}
 	}
 }
