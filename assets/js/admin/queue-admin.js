@@ -1,0 +1,471 @@
+/**
+ * WP Karaoke Queue Manager - Admin JS
+ *
+ * @package WPKQ
+ */
+
+import '../../css/admin/queue-admin.css';
+
+( function () {
+	'use strict';
+
+	// ─── State ───────────────────────────────────────────────────────────────
+
+	/** @type {Array} Full singer queue from the API */
+	let queue = [];
+
+	// ─── DOM References ───────────────────────────────────────────────────────
+
+	const el = {
+		loading:        document.getElementById( 'wpkq-loading' ),
+		content:        document.getElementById( 'wpkq-content' ),
+		saveStatus:     document.getElementById( 'wpkq-save-status' ),
+
+		// Queue table
+		queueTbody:     document.getElementById( 'wpkq-queue-tbody' ),
+		queueEmpty:     document.getElementById( 'wpkq-queue-empty' ),
+		queueCount:     document.getElementById( 'wpkq-queue-count' ),
+
+		// Pending table
+		pendingTbody:   document.getElementById( 'wpkq-pending-tbody' ),
+		pendingEmpty:   document.getElementById( 'wpkq-pending-empty' ),
+		pendingCount:   document.getElementById( 'wpkq-pending-count' ),
+
+		// Modal
+		modal:          document.getElementById( 'wpkq-modal' ),
+		modalClose:     document.getElementById( 'wpkq-modal-close' ),
+		modalCancel:    document.getElementById( 'wpkq-modal-cancel' ),
+		modalSave:      document.getElementById( 'wpkq-modal-save' ),
+		editIndex:      document.getElementById( 'wpkq-edit-index' ),
+		editName:       document.getElementById( 'wpkq-edit-name' ),
+		editSong:       document.getElementById( 'wpkq-edit-song' ),
+		editArtist:     document.getElementById( 'wpkq-edit-artist' ),
+	};
+
+	const { apiBase, nonce, venueSlug, i18n } = wpkqAdmin;
+
+	// ─── Utilities ────────────────────────────────────────────────────────────
+
+	/**
+	 * Format a Unix timestamp as a human-readable time string.
+	 *
+	 * @param {number} timestamp Unix timestamp in seconds.
+	 * @return {string}
+	 */
+	function formatTime( timestamp ) {
+		if ( ! timestamp ) {
+			return '—';
+		}
+		const date = new Date( timestamp * 1000 );
+		return date.toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } );
+	}
+
+	/**
+	 * Escape HTML special characters.
+	 *
+	 * @param {string} str
+	 * @return {string}
+	 */
+	function escHtml( str ) {
+		const div = document.createElement( 'div' );
+		div.appendChild( document.createTextNode( str || '' ) );
+		return div.innerHTML;
+	}
+
+	/**
+	 * Show a transient save status message.
+	 *
+	 * @param {string}  message Message to display.
+	 * @param {boolean} isError Whether this is an error.
+	 */
+	function showSaveStatus( message, isError = false ) {
+		el.saveStatus.textContent = message;
+		el.saveStatus.className = 'wpkq-save-status ' + ( isError ? 'wpkq-save-status--error' : 'wpkq-save-status--success' );
+		clearTimeout( el.saveStatus._timeout );
+		el.saveStatus._timeout = setTimeout( () => {
+			el.saveStatus.textContent = '';
+			el.saveStatus.className = 'wpkq-save-status';
+		}, 3000 );
+	}
+
+	// ─── API ──────────────────────────────────────────────────────────────────
+
+	/**
+	 * Fetch the queue from the REST API.
+	 *
+	 * @return {Promise<void>}
+	 */
+	async function fetchQueue() {
+		try {
+			const url = `${ apiBase }?slug=${ encodeURIComponent( venueSlug ) }`;
+			const response = await fetch( url, {
+				headers: {
+					'X-WP-Nonce': nonce,
+				},
+			} );
+
+			if ( ! response.ok ) {
+				throw new Error( `HTTP ${ response.status }` );
+			}
+
+			const data = await response.json();
+			queue = data.queue || [];
+
+			el.loading.style.display = 'none';
+			el.content.style.display = '';
+			renderAll();
+		} catch ( err ) {
+			el.loading.style.display = 'none';
+			showSaveStatus( i18n.loadError, true );
+			console.error( 'WPKQ fetchQueue error:', err );
+		}
+	}
+
+	/**
+	 * Save the queue to the REST API.
+	 *
+	 * @return {Promise<void>}
+	 */
+	async function saveQueue() {
+		showSaveStatus( i18n.saving );
+
+		try {
+			const response = await fetch( apiBase, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-WP-Nonce': nonce,
+				},
+				body: JSON.stringify( {
+					slug: venueSlug,
+					queue: queue,
+				} ),
+			} );
+
+			if ( ! response.ok ) {
+				throw new Error( `HTTP ${ response.status }` );
+			}
+
+			const data = await response.json();
+			queue = data.queue || queue;
+			showSaveStatus( '✓ Queue saved' );
+			renderAll();
+		} catch ( err ) {
+			showSaveStatus( i18n.saveError, true );
+			console.error( 'WPKQ saveQueue error:', err );
+		}
+	}
+
+	// ─── Rendering ────────────────────────────────────────────────────────────
+
+	/**
+	 * Render both tables.
+	 */
+	function renderAll() {
+		renderQueueTable();
+		renderPendingTable();
+	}
+
+	/**
+	 * Build the action buttons for a singer row.
+	 *
+	 * @param {number} globalIndex Index of singer in the full queue array.
+	 * @param {string} context     'queue' or 'pending'.
+	 * @return {string} HTML string.
+	 */
+	function buildActionButtons( globalIndex, context ) {
+		let html = '<div class="wpkq-actions">';
+
+		if ( 'pending' === context ) {
+			html += `<button
+				class="wpkq-btn wpkq-btn--add"
+				data-action="add-to-queue"
+				data-index="${ globalIndex }"
+				aria-label="Add to queue"
+			>Add to Queue</button>`;
+		}
+
+		html += `<button
+			class="wpkq-btn wpkq-btn--edit"
+			data-action="edit"
+			data-index="${ globalIndex }"
+			aria-label="Edit singer"
+		>✏️ Edit</button>`;
+
+		if ( 'queue' === context ) {
+			html += `<button
+				class="wpkq-btn wpkq-btn--finish"
+				data-action="finish"
+				data-index="${ globalIndex }"
+				aria-label="Mark as finished"
+			>✅ Finished</button>`;
+		}
+
+		html += `<button
+			class="wpkq-btn wpkq-btn--delete"
+			data-action="delete"
+			data-index="${ globalIndex }"
+			aria-label="Delete singer"
+		>🗑️ Delete</button>`;
+
+		html += '</div>';
+		return html;
+	}
+
+	/**
+	 * Render the active queue table (status: in-the-queue).
+	 */
+	function renderQueueTable() {
+		const singers = queue
+			.map( ( s, i ) => ( { singer: s, index: i } ) )
+			.filter( ( { singer } ) => singer.status === 'in-the-queue' );
+
+		el.queueCount.textContent = singers.length;
+
+		if ( 0 === singers.length ) {
+			el.queueTbody.innerHTML = '';
+			el.queueEmpty.style.display = '';
+			return;
+		}
+
+		el.queueEmpty.style.display = 'none';
+
+		el.queueTbody.innerHTML = singers.map( ( { singer, index } ) => `
+			<tr class="wpkq-row" data-index="${ index }">
+				<td class="wpkq-col-drag wpkq-drag-handle" title="Drag to reorder">
+					<span class="wpkq-drag-icon" aria-hidden="true">⠿</span>
+				</td>
+				<td class="wpkq-col-name" data-label="Name">${ escHtml( singer.singer_name ) }</td>
+				<td class="wpkq-col-song" data-label="Song">${ escHtml( singer.song ) }</td>
+				<td class="wpkq-col-artist" data-label="Artist">${ escHtml( singer.artist ) }</td>
+				<td class="wpkq-col-time" data-label="Signed Up">${ formatTime( singer.signup_time ) }</td>
+				<td class="wpkq-col-actions">${ buildActionButtons( index, 'queue' ) }</td>
+			</tr>
+		` ).join( '' );
+	}
+
+	/**
+	 * Render the pending (kj-received) table.
+	 */
+	function renderPendingTable() {
+		const singers = queue
+			.map( ( s, i ) => ( { singer: s, index: i } ) )
+			.filter( ( { singer } ) => singer.status === 'kj-received' );
+
+		el.pendingCount.textContent = singers.length;
+
+		if ( 0 === singers.length ) {
+			el.pendingTbody.innerHTML = '';
+			el.pendingEmpty.style.display = '';
+			return;
+		}
+
+		el.pendingEmpty.style.display = 'none';
+
+		el.pendingTbody.innerHTML = singers.map( ( { singer, index } ) => `
+			<tr class="wpkq-row" data-index="${ index }">
+				<td class="wpkq-col-name" data-label="Name">${ escHtml( singer.singer_name ) }</td>
+				<td class="wpkq-col-song" data-label="Song">${ escHtml( singer.song ) }</td>
+				<td class="wpkq-col-artist" data-label="Artist">${ escHtml( singer.artist ) }</td>
+				<td class="wpkq-col-time" data-label="Signed Up">${ formatTime( singer.signup_time ) }</td>
+				<td class="wpkq-col-actions">${ buildActionButtons( index, 'pending' ) }</td>
+			</tr>
+		` ).join( '' );
+	}
+
+	// ─── SortableJS ───────────────────────────────────────────────────────────
+
+	/**
+	 * Initialize SortableJS on the active queue tbody.
+	 */
+	function initSortable() {
+		if ( typeof Sortable === 'undefined' ) {
+			console.warn( 'WPKQ: SortableJS not loaded.' );
+			return;
+		}
+
+		Sortable.create( el.queueTbody, {
+			animation: 150,
+			handle: '.wpkq-drag-handle',
+			ghostClass: 'wpkq-row--ghost',
+			chosenClass: 'wpkq-row--chosen',
+			dragClass: 'wpkq-row--drag',
+
+			// Required for touch devices.
+			forceFallback: false,
+			fallbackOnBody: true,
+			swapThreshold: 0.65,
+
+			onEnd( evt ) {
+				const inQueueSingers = queue
+					.map( ( s, i ) => ( { singer: s, origIndex: i } ) )
+					.filter( ( { singer } ) => singer.status === 'in-the-queue' );
+
+				// Reorder only the in-the-queue singers.
+				const moved = inQueueSingers.splice( evt.oldIndex, 1 )[ 0 ];
+				inQueueSingers.splice( evt.newIndex, 0, moved );
+
+				// Rebuild full queue with new ordering for in-the-queue, preserve others.
+				const others = queue.filter( s => s.status !== 'in-the-queue' );
+				queue = [ ...inQueueSingers.map( item => item.singer ), ...others ];
+
+				saveQueue();
+			},
+		} );
+	}
+
+	// ─── Event Handlers ───────────────────────────────────────────────────────
+
+	/**
+	 * Handle button clicks in both tables via event delegation.
+	 *
+	 * @param {Event} e
+	 */
+	function handleTableClick( e ) {
+		const btn = e.target.closest( '[data-action]' );
+		if ( ! btn ) {
+			return;
+		}
+
+		const action = btn.dataset.action;
+		const index  = parseInt( btn.dataset.index, 10 );
+
+		switch ( action ) {
+			case 'add-to-queue':
+				queue[ index ].status = 'in-the-queue';
+				saveQueue();
+				break;
+
+			case 'edit':
+				openEditModal( index );
+				break;
+
+			case 'finish':
+				if ( window.confirm( i18n.confirmFinished ) ) {
+					queue[ index ].status         = 'finished';
+					queue[ index ].completed_time = Math.floor( Date.now() / 1000 );
+					saveQueue();
+				}
+				break;
+
+			case 'delete':
+				if ( window.confirm( i18n.confirmDelete ) ) {
+					queue.splice( index, 1 );
+					saveQueue();
+				}
+				break;
+		}
+	}
+
+	// ─── Edit Modal ───────────────────────────────────────────────────────────
+
+	/**
+	 * Open the edit modal for a singer.
+	 *
+	 * @param {number} index Index in the queue array.
+	 */
+	function openEditModal( index ) {
+		const singer = queue[ index ];
+		if ( ! singer ) {
+			return;
+		}
+
+		el.editIndex.value  = index;
+		el.editName.value   = singer.singer_name || '';
+		el.editSong.value   = singer.song || '';
+		el.editArtist.value = singer.artist || '';
+
+		el.modal.style.display = '';
+		el.modal.removeAttribute( 'hidden' );
+
+		// Focus first field for accessibility.
+		el.editName.focus();
+	}
+
+	/**
+	 * Close the edit modal.
+	 */
+	function closeEditModal() {
+		el.modal.style.display = 'none';
+		el.editIndex.value = '';
+	}
+
+	/**
+	 * Save edits from the modal.
+	 */
+	function saveEditModal() {
+		const index = parseInt( el.editIndex.value, 10 );
+
+		if ( isNaN( index ) || ! queue[ index ] ) {
+			closeEditModal();
+			return;
+		}
+
+		queue[ index ].singer_name = el.editName.value.substring( 0, 50 );
+		queue[ index ].song        = el.editSong.value.substring( 0, 50 );
+		queue[ index ].artist      = el.editArtist.value.substring( 0, 50 );
+
+		closeEditModal();
+		saveQueue();
+	}
+
+	// ─── Init ─────────────────────────────────────────────────────────────────
+
+	/**
+	 * Bind all event listeners.
+	 */
+	function bindEvents() {
+		// Table delegation.
+		el.queueTbody.addEventListener( 'click', handleTableClick );
+		el.pendingTbody.addEventListener( 'click', handleTableClick );
+
+		// Modal.
+		el.modalClose.addEventListener( 'click', closeEditModal );
+		el.modalCancel.addEventListener( 'click', closeEditModal );
+		el.modalSave.addEventListener( 'click', saveEditModal );
+
+		// Close modal on overlay click.
+		el.modal.addEventListener( 'click', function ( e ) {
+			if ( e.target === el.modal ) {
+				closeEditModal();
+			}
+		} );
+
+		// Close modal on Escape key.
+		document.addEventListener( 'keydown', function ( e ) {
+			if ( 'Escape' === e.key && el.modal.style.display !== 'none' ) {
+				closeEditModal();
+			}
+		} );
+
+		// Save on Enter in modal inputs.
+		[ el.editName, el.editSong, el.editArtist ].forEach( function ( input ) {
+			input.addEventListener( 'keydown', function ( e ) {
+				if ( 'Enter' === e.key ) {
+					saveEditModal();
+				}
+			} );
+		} );
+	}
+
+	/**
+	 * Bootstrap the app.
+	 */
+	function init() {
+		if ( ! venueSlug ) {
+			console.error( 'WPKQ: No venue slug provided.' );
+			return;
+		}
+
+		bindEvents();
+		initSortable();
+		fetchQueue();
+	}
+
+	// Kick off when DOM is ready.
+	if ( document.readyState === 'loading' ) {
+		document.addEventListener( 'DOMContentLoaded', init );
+	} else {
+		init();
+	}
+} )();

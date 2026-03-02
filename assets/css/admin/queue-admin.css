@@ -1,0 +1,515 @@
+/**
+ * WP Karaoke Queue Manager - Admin CSS
+ *
+ * @package WPKQ
+ */
+
+/* ─── Variables ────────────────────────────────────────────────────────────── */
+:root {
+	--wpkq-primary:      #7c3aed;
+	--wpkq-primary-dark: #5b21b6;
+	--wpkq-accent:       #f59e0b;
+	--wpkq-success:      #10b981;
+	--wpkq-danger:       #ef4444;
+	--wpkq-pending:      #f59e0b;
+	--wpkq-surface:      #ffffff;
+	--wpkq-surface-2:    #f8f7ff;
+	--wpkq-border:       #e5e4f0;
+	--wpkq-text:         #1e1b3a;
+	--wpkq-text-muted:   #6b7280;
+	--wpkq-radius:       10px;
+	--wpkq-shadow:       0 2px 12px rgba( 124, 58, 237, 0.08 );
+	--wpkq-shadow-lg:    0 8px 32px rgba( 124, 58, 237, 0.18 );
+}
+
+/* ─── Wrap ──────────────────────────────────────────────────────────────────── */
+.wpkq-admin-wrap {
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	color: var( --wpkq-text );
+	max-width: 900px;
+	padding: 0 0 48px;
+}
+
+/* ─── Header ────────────────────────────────────────────────────────────────── */
+.wpkq-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-bottom: 28px;
+	padding-bottom: 20px;
+	border-bottom: 2px solid var( --wpkq-border );
+}
+
+.wpkq-title {
+	font-size: 1.6rem;
+	font-weight: 700;
+	color: var( --wpkq-primary );
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 0;
+}
+
+.wpkq-title-icon {
+	font-size: 1.8rem;
+	line-height: 1;
+}
+
+/* ─── Save Status ────────────────────────────────────────────────────────────── */
+.wpkq-save-status {
+	font-size: 0.875rem;
+	font-weight: 600;
+	min-height: 24px;
+	transition: opacity 0.2s;
+}
+
+.wpkq-save-status--success {
+	color: var( --wpkq-success );
+}
+
+.wpkq-save-status--error {
+	color: var( --wpkq-danger );
+}
+
+/* ─── Loading ────────────────────────────────────────────────────────────────── */
+.wpkq-loading {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 24px 0;
+	color: var( --wpkq-text-muted );
+	font-size: 1rem;
+}
+
+.wpkq-spinner {
+	display: inline-block;
+	width: 20px;
+	height: 20px;
+	border: 3px solid var( --wpkq-border );
+	border-top-color: var( --wpkq-primary );
+	border-radius: 50%;
+	animation: wpkq-spin 0.7s linear infinite;
+}
+
+@keyframes wpkq-spin {
+	to { transform: rotate( 360deg ); }
+}
+
+/* ─── Sections ───────────────────────────────────────────────────────────────── */
+.wpkq-section {
+	background: var( --wpkq-surface );
+	border: 1px solid var( --wpkq-border );
+	border-radius: var( --wpkq-radius );
+	box-shadow: var( --wpkq-shadow );
+	margin-bottom: 28px;
+	overflow: hidden;
+}
+
+.wpkq-section-title {
+	font-size: 1.1rem;
+	font-weight: 700;
+	margin: 0;
+	padding: 16px 20px;
+	background: var( --wpkq-surface-2 );
+	border-bottom: 1px solid var( --wpkq-border );
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.wpkq-section-hint {
+	font-size: 0.8rem;
+	color: var( --wpkq-text-muted );
+	margin: 0;
+	padding: 6px 20px 12px;
+	border-bottom: 1px solid var( --wpkq-border );
+}
+
+/* ─── Badges ─────────────────────────────────────────────────────────────────── */
+.wpkq-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	height: 24px;
+	padding: 0 7px;
+	border-radius: 99px;
+	font-size: 0.8rem;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.wpkq-badge--active {
+	background: var( --wpkq-primary );
+	color: #fff;
+}
+
+.wpkq-badge--pending {
+	background: var( --wpkq-pending );
+	color: #fff;
+}
+
+/* ─── Table ──────────────────────────────────────────────────────────────────── */
+.wpkq-table-wrap {
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.wpkq-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.9rem;
+}
+
+.wpkq-table thead {
+	background: var( --wpkq-surface-2 );
+}
+
+.wpkq-table th {
+	padding: 10px 14px;
+	text-align: left;
+	font-weight: 600;
+	font-size: 0.8rem;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var( --wpkq-text-muted );
+	border-bottom: 1px solid var( --wpkq-border );
+	white-space: nowrap;
+}
+
+.wpkq-table td {
+	padding: 12px 14px;
+	border-bottom: 1px solid var( --wpkq-border );
+	vertical-align: middle;
+}
+
+.wpkq-row:last-child td {
+	border-bottom: none;
+}
+
+.wpkq-row:hover {
+	background: var( --wpkq-surface-2 );
+}
+
+/* Drag states */
+.wpkq-row--ghost {
+	opacity: 0.4;
+}
+
+.wpkq-row--chosen {
+	background: #f0ebff !important;
+}
+
+.wpkq-row--drag {
+	background: var( --wpkq-surface );
+	box-shadow: var( --wpkq-shadow-lg );
+}
+
+/* Column sizing */
+.wpkq-col-drag {
+	width: 36px;
+	padding: 12px 8px;
+}
+
+.wpkq-col-time {
+	white-space: nowrap;
+	color: var( --wpkq-text-muted );
+	font-size: 0.85rem;
+}
+
+.wpkq-col-actions {
+	width: 1%;
+	white-space: nowrap;
+}
+
+/* ─── Drag Handle ─────────────────────────────────────────────────────────────── */
+.wpkq-drag-handle {
+	cursor: grab;
+	user-select: none;
+	touch-action: none;
+	text-align: center;
+}
+
+.wpkq-drag-handle:active {
+	cursor: grabbing;
+}
+
+.wpkq-drag-icon {
+	font-size: 1.2rem;
+	color: var( --wpkq-text-muted );
+	line-height: 1;
+}
+
+/* ─── Empty Messages ─────────────────────────────────────────────────────────── */
+.wpkq-empty-msg {
+	text-align: center;
+	color: var( --wpkq-text-muted );
+	font-style: italic;
+	padding: 24px;
+	margin: 0;
+}
+
+/* ─── Buttons ────────────────────────────────────────────────────────────────── */
+.wpkq-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+}
+
+.wpkq-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 7px 13px;
+	border: none;
+	border-radius: 6px;
+	font-size: 0.8rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+	white-space: nowrap;
+	min-height: 36px; /* Touch friendly */
+}
+
+.wpkq-btn:active {
+	transform: scale( 0.97 );
+}
+
+.wpkq-btn--primary {
+	background: var( --wpkq-primary );
+	color: #fff;
+}
+
+.wpkq-btn--primary:hover {
+	background: var( --wpkq-primary-dark );
+}
+
+.wpkq-btn--secondary {
+	background: var( --wpkq-border );
+	color: var( --wpkq-text );
+}
+
+.wpkq-btn--secondary:hover {
+	background: #d5d2e8;
+}
+
+.wpkq-btn--add {
+	background: var( --wpkq-success );
+	color: #fff;
+}
+
+.wpkq-btn--add:hover {
+	background: #059669;
+}
+
+.wpkq-btn--edit {
+	background: #ede9fe;
+	color: var( --wpkq-primary );
+}
+
+.wpkq-btn--edit:hover {
+	background: #ddd6fe;
+}
+
+.wpkq-btn--finish {
+	background: #ecfdf5;
+	color: #065f46;
+}
+
+.wpkq-btn--finish:hover {
+	background: #d1fae5;
+}
+
+.wpkq-btn--delete {
+	background: #fef2f2;
+	color: var( --wpkq-danger );
+}
+
+.wpkq-btn--delete:hover {
+	background: #fee2e2;
+}
+
+/* ─── Modal ──────────────────────────────────────────────────────────────────── */
+.wpkq-modal-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba( 0, 0, 0, 0.55 );
+	z-index: 99999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 16px;
+}
+
+.wpkq-modal {
+	background: var( --wpkq-surface );
+	border-radius: 14px;
+	box-shadow: var( --wpkq-shadow-lg );
+	width: 100%;
+	max-width: 440px;
+	animation: wpkq-modal-in 0.2s ease;
+}
+
+@keyframes wpkq-modal-in {
+	from { transform: translateY( 20px ); opacity: 0; }
+	to   { transform: translateY( 0 );    opacity: 1; }
+}
+
+.wpkq-modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 18px 20px 14px;
+	border-bottom: 1px solid var( --wpkq-border );
+}
+
+.wpkq-modal-title {
+	font-size: 1.1rem;
+	font-weight: 700;
+	margin: 0;
+	color: var( --wpkq-primary );
+}
+
+.wpkq-modal-close {
+	background: none;
+	border: none;
+	font-size: 1.4rem;
+	cursor: pointer;
+	color: var( --wpkq-text-muted );
+	line-height: 1;
+	padding: 4px 6px;
+	border-radius: 4px;
+	transition: color 0.15s, background 0.15s;
+}
+
+.wpkq-modal-close:hover {
+	color: var( --wpkq-text );
+	background: var( --wpkq-border );
+}
+
+.wpkq-modal-body {
+	padding: 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.wpkq-field {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.wpkq-field label {
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: var( --wpkq-text-muted );
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.wpkq-field input[type="text"] {
+	width: 100%;
+	padding: 10px 12px;
+	border: 1.5px solid var( --wpkq-border );
+	border-radius: 7px;
+	font-size: 1rem;
+	color: var( --wpkq-text );
+	background: var( --wpkq-surface );
+	transition: border-color 0.15s, box-shadow 0.15s;
+	box-sizing: border-box;
+}
+
+.wpkq-field input[type="text"]:focus {
+	outline: none;
+	border-color: var( --wpkq-primary );
+	box-shadow: 0 0 0 3px rgba( 124, 58, 237, 0.15 );
+}
+
+.wpkq-modal-footer {
+	padding: 14px 20px 18px;
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	border-top: 1px solid var( --wpkq-border );
+}
+
+/* ─── Responsive (Mobile) ────────────────────────────────────────────────────── */
+@media ( max-width: 640px ) {
+
+	.wpkq-title {
+		font-size: 1.2rem;
+	}
+
+	/* Stack table as cards on small screens */
+	.wpkq-table thead {
+		display: none;
+	}
+
+	.wpkq-table,
+	.wpkq-table tbody,
+	.wpkq-table tr,
+	.wpkq-table td {
+		display: block;
+		width: 100%;
+	}
+
+	.wpkq-row {
+		padding: 10px 0;
+		border-bottom: 2px solid var( --wpkq-border );
+	}
+
+	.wpkq-table td {
+		padding: 6px 14px;
+		border: none;
+		position: relative;
+	}
+
+	.wpkq-table td[data-label]::before {
+		content: attr( data-label ) ': ';
+		font-weight: 700;
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var( --wpkq-text-muted );
+		display: inline;
+	}
+
+	.wpkq-col-drag {
+		float: right;
+		width: auto;
+		padding: 8px 14px;
+		font-size: 1.4rem;
+	}
+
+	.wpkq-col-actions {
+		width: 100%;
+		white-space: normal;
+	}
+
+	.wpkq-actions {
+		justify-content: flex-start;
+		gap: 8px;
+		padding-top: 4px;
+	}
+
+	.wpkq-btn {
+		min-height: 42px;
+		padding: 8px 14px;
+		font-size: 0.85rem;
+	}
+
+	.wpkq-modal-footer {
+		flex-direction: column-reverse;
+	}
+
+	.wpkq-modal-footer .wpkq-btn {
+		width: 100%;
+		justify-content: center;
+		min-height: 46px;
+		font-size: 1rem;
+	}
+}

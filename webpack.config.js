@@ -1,0 +1,81 @@
+/**
+ * Webpack Configuration
+ *
+ * @package WPKQ
+ */
+
+const path = require( 'path' );
+const MiniCssExtractPlugin = require( 'mini-css-extract-plugin' );
+
+module.exports = ( env, argv ) => {
+	const isProduction = argv.mode === 'production';
+
+	return {
+		entry: {
+			'admin':    './assets/js/admin/queue-admin.js',
+			'frontend': './assets/js/frontend/frontend.js',
+		},
+
+		output: {
+			filename: 'js/[name].js',
+			path: path.resolve( __dirname, 'dist' ),
+			clean: true,
+		},
+
+		module: {
+			rules: [
+				// JavaScript: transpile with Babel
+				{
+					test: /\.js$/,
+					exclude: /node_modules/,
+					use: {
+						loader: 'babel-loader',
+						options: {
+							presets: [
+								[
+									'@babel/preset-env',
+									{
+										targets: '> 0.5%, last 2 versions, not dead',
+										useBuiltIns: 'usage',
+										corejs: 3,
+									},
+								],
+							],
+						},
+					},
+				},
+
+				// CSS: extract to separate files
+				{
+					test: /\.css$/,
+					use: [
+						MiniCssExtractPlugin.loader,
+						'css-loader',
+					],
+				},
+			],
+		},
+
+		plugins: [
+			new MiniCssExtractPlugin( {
+				filename: 'css/[name].css',
+			} ),
+		],
+
+		// Import CSS from JS entry points
+		resolve: {
+			extensions: [ '.js', '.css' ],
+		},
+
+		devtool: isProduction ? false : 'source-map',
+
+		optimization: {
+			minimize: isProduction,
+		},
+
+		// Treat SortableJS as an external (loaded separately via WP)
+		externals: {
+			sortablejs: 'Sortable',
+		},
+	};
+};
