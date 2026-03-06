@@ -68,6 +68,9 @@ import '../../css/admin/queue-admin.css';
 
 	const { apiBase, nonce, venueSlug, i18n } = wpkqAdmin;
 
+	const singerApiBase = apiBase + '/singer';
+	const reorderApiUrl = apiBase + '/reorder';
+
 	// ─── Utilities ────────────────────────────────────────────────────────────
 
 	/**
@@ -162,37 +165,104 @@ import '../../css/admin/queue-admin.css';
 	}
 
 	/**
-	 * Save the queue to the REST API.
+	 * Make an authenticated JSON request to the REST API.
 	 *
+	 * @param {string} method  HTTP method.
+	 * @param {string} url     Full URL.
+	 * @param {Object} body    Request body.
+	 * @return {Promise<Object>}
+	 */
+	async function apiRequest( method, url, body ) {
+		const response = await fetch( url, {
+			method,
+			headers: {
+				'Content-Type': 'application/json',
+				'X-WP-Nonce': nonce,
+			},
+			body: JSON.stringify( body ),
+		} );
+
+		if ( ! response.ok ) {
+			throw new Error( `HTTP ${ response.status }` );
+		}
+
+		return response.json();
+	}
+
+	/**
+	 * Add a singer to the queue via the REST API.
+	 *
+	 * @param {Object} singerData Full singer object.
 	 * @return {Promise<void>}
 	 */
-	async function saveQueue() {
+	async function addSinger( singerData ) {
 		showSaveStatus( i18n.saving );
-
 		try {
-			const response = await fetch( apiBase, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': nonce,
-				},
-				body: JSON.stringify( {
-					slug: venueSlug,
-					queue: queue,
-				} ),
-			} );
-
-			if ( ! response.ok ) {
-				throw new Error( `HTTP ${ response.status }` );
-			}
-
-			const data = await response.json();
+			const data = await apiRequest( 'POST', singerApiBase, { slug: venueSlug, ...singerData } );
 			queue = data.queue || queue;
-			showSaveStatus( '✓ Queue saved' );
+			showSaveStatus( '✓ Singer added' );
 			renderAll();
 		} catch ( err ) {
 			showSaveStatus( i18n.saveError, true );
-			console.error( 'WPKQ saveQueue error:', err );
+			console.error( 'WPKQ addSinger error:', err );
+		}
+	}
+
+	/**
+	 * Update a single singer's fields via the REST API.
+	 *
+	 * @param {string} id     Singer ID.
+	 * @param {Object} fields Fields to update.
+	 * @return {Promise<void>}
+	 */
+	async function updateSinger( id, fields ) {
+		showSaveStatus( i18n.saving );
+		try {
+			const data = await apiRequest( 'PUT', `${ singerApiBase }/${ id }`, { slug: venueSlug, ...fields } );
+			queue = data.queue || queue;
+			showSaveStatus( '✓ Saved' );
+			renderAll();
+		} catch ( err ) {
+			showSaveStatus( i18n.saveError, true );
+			console.error( 'WPKQ updateSinger error:', err );
+		}
+	}
+
+	/**
+	 * Delete a singer from the queue via the REST API.
+	 *
+	 * @param {string} id Singer ID.
+	 * @return {Promise<void>}
+	 */
+	async function deleteSinger( id ) {
+		showSaveStatus( i18n.saving );
+		try {
+			const data = await apiRequest( 'DELETE', `${ singerApiBase }/${ id }`, { slug: venueSlug } );
+			queue = data.queue || queue;
+			showSaveStatus( '✓ Singer removed' );
+			renderAll();
+		} catch ( err ) {
+			showSaveStatus( i18n.saveError, true );
+			console.error( 'WPKQ deleteSinger error:', err );
+		}
+	}
+
+	/**
+	 * Reorder the in-the-queue singers via the REST API.
+	 *
+	 * @param {string[]} order Array of singer IDs in the desired order.
+	 * @return {Promise<void>}
+	 */
+	async function reorderQueue( order ) {
+		showSaveStatus( i18n.saving );
+		try {
+			const data = await apiRequest( 'POST', reorderApiUrl, { slug: venueSlug, order } );
+			queue = data.queue || queue;
+			showSaveStatus( '✓ Order saved' );
+			renderAll();
+		} catch ( err ) {
+			showSaveStatus( i18n.saveError, true );
+			console.error( 'WPKQ reorderQueue error:', err );
 		}
 	}
 
@@ -410,18 +480,13 @@ import '../../css/admin/queue-admin.css';
 
 			onEnd( evt ) {
 				const inQueueSingers = queue
-					.map( ( s, i ) => ( { singer: s, origIndex: i } ) )
-					.filter( ( { singer } ) => singer.status === 'in-the-queue' );
+					.filter( s => s.status === 'in-the-queue' );
 
 				// Reorder only the in-the-queue singers.
 				const moved = inQueueSingers.splice( evt.oldIndex, 1 )[ 0 ];
 				inQueueSingers.splice( evt.newIndex, 0, moved );
 
-				// Rebuild full queue with new ordering for in-the-queue, preserve others.
-				const others = queue.filter( s => s.status !== 'in-the-queue' );
-				queue = [ ...inQueueSingers.map( item => item.singer ), ...others ];
-
-				saveQueue();
+				reorderQueue( inQueueSingers.map( s => s.id ) );
 			},
 		} );
 	}
@@ -442,21 +507,18 @@ import '../../css/admin/queue-admin.css';
 		const action = btn.dataset.action;
 		const index  = parseInt( btn.dataset.index, 10 );
 
+		const singer = queue[ index ];
+		if ( ! singer ) {
+			return;
+		}
+
 		switch ( action ) {
 			case 'add-to-queue':
-				queue[ index ].status = 'in-the-queue';
-				saveQueue();
+				updateSinger( singer.id, { status: 'in-the-queue' } );
 				break;
 
 			case 'on-stage':
-				// Revert any existing on-stage singer back to in-the-queue.
-				queue.forEach( function ( singer ) {
-					if ( singer.status === 'on-stage' ) {
-						singer.status = 'in-the-queue';
-					}
-				} );
-				queue[ index ].status = 'on-stage';
-				saveQueue();
+				updateSinger( singer.id, { status: 'on-stage' } );
 				break;
 
 			case 'edit':
@@ -465,16 +527,16 @@ import '../../css/admin/queue-admin.css';
 
 			case 'finish':
 				if ( window.confirm( i18n.confirmFinished ) ) {
-					queue[ index ].status         = 'finished';
-					queue[ index ].completed_time = Math.floor( Date.now() / 1000 );
-					saveQueue();
+					updateSinger( singer.id, {
+						status:         'finished',
+						completed_time: Math.floor( Date.now() / 1000 ),
+					} );
 				}
 				break;
 
 			case 'delete':
 				if ( window.confirm( i18n.confirmDelete ) ) {
-					queue.splice( index, 1 );
-					saveQueue();
+					deleteSinger( singer.id );
 				}
 				break;
 		}
@@ -525,9 +587,8 @@ import '../../css/admin/queue-admin.css';
 			status:         'in-the-queue',
 		};
 
-		queue.push( newSinger );
 		closeAddModal();
-		saveQueue();
+		addSinger( newSinger );
 	}
 
 	// ─── Edit Modal ───────────────────────────────────────────────────────────
@@ -575,13 +636,16 @@ import '../../css/admin/queue-admin.css';
 			return;
 		}
 
-		queue[ index ].singer_name = el.editName.value.substring( 0, 50 );
-		queue[ index ].song        = el.editSong.value.substring( 0, 50 );
-		queue[ index ].artist      = el.editArtist.value.substring( 0, 50 );
-		queue[ index ].youtube_url = el.editYoutubeUrl.value.trim();
+		const singer = queue[ index ];
+		const fields = {
+			singer_name: el.editName.value.substring( 0, 50 ),
+			song:        el.editSong.value.substring( 0, 50 ),
+			artist:      el.editArtist.value.substring( 0, 50 ),
+			youtube_url: el.editYoutubeUrl.value.trim(),
+		};
 
 		closeEditModal();
-		saveQueue();
+		updateSinger( singer.id, fields );
 	}
 
 	// ─── Init ─────────────────────────────────────────────────────────────────

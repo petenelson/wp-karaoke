@@ -45,25 +45,73 @@ class Queue_Rest_Controller {
 	 * Register REST routes.
 	 */
 	public function register_routes() {
+		// GET /wpkq/v1/queue — fetch queue.
 		register_rest_route(
 			self::NAMESPACE,
 			self::ROUTE,
 			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_queue' ),
+				'permission_callback' => '__return_true',
+				'args'                => $this->get_slug_arg(),
+			)
+		);
+
+		// POST /wpkq/v1/queue/singer — add a singer.
+		register_rest_route(
+			self::NAMESPACE,
+			self::ROUTE . '/singer',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'add_singer' ),
+				'permission_callback' => array( $this, 'update_queue_permissions_check' ),
+				'args'                => $this->get_slug_arg(),
+			)
+		);
+
+		// PUT|PATCH /wpkq/v1/queue/singer/{id} — update a singer.
+		// DELETE    /wpkq/v1/queue/singer/{id} — delete a singer.
+		register_rest_route(
+			self::NAMESPACE,
+			self::ROUTE . '/singer/(?P<id>[A-Za-z0-9]+)',
+			array(
 				array(
-					'methods'             => \WP_REST_Server::READABLE,
-					'callback'            => array( $this, 'get_queue' ),
-					'permission_callback' => '__return_true',
+					'methods'             => \WP_REST_Server::EDITABLE,
+					'callback'            => array( $this, 'update_singer' ),
+					'permission_callback' => array( $this, 'update_queue_permissions_check' ),
 					'args'                => $this->get_slug_arg(),
 				),
 				array(
-					'methods'             => \WP_REST_Server::CREATABLE,
-					'callback'            => array( $this, 'update_queue' ),
+					'methods'             => \WP_REST_Server::DELETABLE,
+					'callback'            => array( $this, 'delete_singer' ),
 					'permission_callback' => array( $this, 'update_queue_permissions_check' ),
-					'args'                => $this->get_update_args(),
+					'args'                => $this->get_slug_arg(),
 				),
 			)
 		);
 
+		// POST /wpkq/v1/queue/reorder — reorder in-the-queue singers.
+		register_rest_route(
+			self::NAMESPACE,
+			self::ROUTE . '/reorder',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'reorder_queue' ),
+				'permission_callback' => array( $this, 'update_queue_permissions_check' ),
+				'args'                => array_merge(
+					$this->get_slug_arg(),
+					array(
+						'order' => array(
+							'required'    => true,
+							'type'        => 'array',
+							'description' => __( 'Array of singer IDs in the desired queue order.', 'wp-karaoke' ),
+						),
+					)
+				),
+			)
+		);
+
+		// POST /wpkq/v1/queue/advance — monitor: advance to next singer.
 		register_rest_route(
 			self::NAMESPACE,
 			self::ROUTE . '/advance',
@@ -145,57 +193,7 @@ class Queue_Rest_Controller {
 	}
 
 	/**
-	 * POST /wpkq/v1/queue
-	 *
-	 * Updates the full singer queue for a venue.
-	 *
-	 * @param \WP_REST_Request $request Request object.
-	 * @return \WP_REST_Response|\WP_Error
-	 */
-	public function update_queue( \WP_REST_Request $request ) {
-		$slug   = $request->get_param( 'slug' );
-		$result = Venue_Post_Type::get_queue_by_slug( $slug );
-
-		if ( is_wp_error( $result ) ) {
-			return $result;
-		}
-
-		$post_id       = $result['post_id'];
-		$singers_input = $request->get_param( 'queue' );
-
-		if ( ! is_array( $singers_input ) ) {
-			return new \WP_Error(
-				'invalid_queue',
-				__( 'Queue must be an array.', 'wp-karaoke' ),
-				array( 'status' => 400 )
-			);
-		}
-
-		$sanitized_queue = array();
-		foreach ( $singers_input as $singer ) {
-			$sanitized_queue[] = $this->sanitize_singer( $singer );
-		}
-
-		$saved = Venue_Post_Type::save_queue( $post_id, $sanitized_queue );
-
-		if ( false === $saved ) {
-			return new \WP_Error(
-				'save_failed',
-				__( 'Failed to save queue.', 'wp-karaoke' ),
-				array( 'status' => 500 )
-			);
-		}
-
-		return rest_ensure_response(
-			array(
-				'success' => true,
-				'queue'   => $sanitized_queue,
-			)
-		);
-	}
-
-	/**
-	 * Check permissions for updating the queue.
+	 * Check permissions for admin queue mutations.
 	 *
 	 * @return bool|\WP_Error
 	 */
@@ -208,6 +206,253 @@ class Queue_Rest_Controller {
 			);
 		}
 		return true;
+	}
+
+	/**
+	 * POST /wpkq/v1/queue/singer
+	 *
+	 * Adds a new singer to the queue.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function add_singer( \WP_REST_Request $request ) {
+		$slug   = $request->get_param( 'slug' );
+		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$post_id    = $result['post_id'];
+		$queue      = $result['queue'];
+		$new_singer = $this->sanitize_singer( $request->get_params() );
+		$queue[]    = $new_singer;
+
+		$saved = Venue_Post_Type::save_queue( $post_id, $queue );
+
+		if ( false === $saved ) {
+			return new \WP_Error(
+				'save_failed',
+				__( 'Failed to save queue.', 'wp-karaoke' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		return $this->get_queue( $request );
+	}
+
+	/**
+	 * PUT /wpkq/v1/queue/singer/{id}
+	 *
+	 * Updates fields on a single singer. Only provided fields are changed.
+	 * When status is set to 'on-stage', any existing on-stage singer is reverted to 'in-the-queue'.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function update_singer( \WP_REST_Request $request ) {
+		$slug   = $request->get_param( 'slug' );
+		$id     = preg_replace( '/[^A-Za-z0-9]/', '', (string) $request->get_param( 'id' ) );
+		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$post_id        = $result['post_id'];
+		$queue          = $result['queue'];
+		$found          = false;
+		$new_status     = null;
+		$valid_statuses = array( 'kj-received', 'in-the-queue', 'on-stage', 'finished' );
+
+		foreach ( $queue as &$singer ) {
+			if ( ( $singer['id'] ?? '' ) !== $id ) {
+				continue;
+			}
+
+			if ( null !== $request->get_param( 'singer_name' ) ) {
+				$singer['singer_name'] = substr( sanitize_text_field( $request->get_param( 'singer_name' ) ), 0, 50 );
+			}
+			if ( null !== $request->get_param( 'song' ) ) {
+				$singer['song'] = substr( sanitize_text_field( $request->get_param( 'song' ) ), 0, 50 );
+			}
+			if ( null !== $request->get_param( 'artist' ) ) {
+				$singer['artist'] = substr( sanitize_text_field( $request->get_param( 'artist' ) ), 0, 50 );
+			}
+			if ( null !== $request->get_param( 'youtube_url' ) ) {
+				$singer['youtube_url'] = esc_url_raw( $request->get_param( 'youtube_url' ) );
+			}
+			if ( null !== $request->get_param( 'completed_time' ) ) {
+				$singer['completed_time'] = absint( $request->get_param( 'completed_time' ) );
+			}
+			if ( null !== $request->get_param( 'status' ) ) {
+				$status_param = $request->get_param( 'status' );
+				if ( in_array( $status_param, $valid_statuses, true ) ) {
+					$singer['status'] = $status_param;
+					$new_status       = $status_param;
+				}
+			}
+
+			$found = true;
+			break;
+		}
+		unset( $singer );
+
+		if ( ! $found ) {
+			return new \WP_Error(
+				'singer_not_found',
+				__( 'Singer not found in queue.', 'wp-karaoke' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		// Revert any other on-stage singer when promoting a new one.
+		if ( 'on-stage' === $new_status ) {
+			foreach ( $queue as &$singer ) {
+				if ( ( $singer['id'] ?? '' ) !== $id && 'on-stage' === ( $singer['status'] ?? '' ) ) {
+					$singer['status'] = 'in-the-queue';
+				}
+			}
+			unset( $singer );
+		}
+
+		$saved = Venue_Post_Type::save_queue( $post_id, $queue );
+
+		if ( false === $saved ) {
+			return new \WP_Error(
+				'save_failed',
+				__( 'Failed to save queue.', 'wp-karaoke' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		return $this->get_queue( $request );
+	}
+
+	/**
+	 * DELETE /wpkq/v1/queue/singer/{id}
+	 *
+	 * Removes a singer from the queue.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function delete_singer( \WP_REST_Request $request ) {
+		$slug   = $request->get_param( 'slug' );
+		$id     = preg_replace( '/[^A-Za-z0-9]/', '', (string) $request->get_param( 'id' ) );
+		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$post_id        = $result['post_id'];
+		$queue          = $result['queue'];
+		$original_count = count( $queue );
+
+		$queue = array_values(
+			array_filter(
+				$queue,
+				function ( $singer ) use ( $id ) {
+					return ( $singer['id'] ?? '' ) !== $id;
+				}
+			)
+		);
+
+		if ( count( $queue ) === $original_count ) {
+			return new \WP_Error(
+				'singer_not_found',
+				__( 'Singer not found in queue.', 'wp-karaoke' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$saved = Venue_Post_Type::save_queue( $post_id, $queue );
+
+		if ( false === $saved ) {
+			return new \WP_Error(
+				'save_failed',
+				__( 'Failed to save queue.', 'wp-karaoke' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		return $this->get_queue( $request );
+	}
+
+	/**
+	 * POST /wpkq/v1/queue/reorder
+	 *
+	 * Reorders the in-the-queue singers based on an array of IDs.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function reorder_queue( \WP_REST_Request $request ) {
+		$slug   = $request->get_param( 'slug' );
+		$order  = $request->get_param( 'order' );
+		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		if ( ! is_array( $order ) ) {
+			return new \WP_Error(
+				'invalid_order',
+				__( 'Order must be an array of IDs.', 'wp-karaoke' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$post_id = $result['post_id'];
+		$queue   = $result['queue'];
+
+		// Sanitize the incoming IDs.
+		$order = array_map(
+			function ( $id ) {
+				return preg_replace( '/[^A-Za-z0-9]/', '', (string) $id );
+			},
+			$order
+		);
+
+		// Split queue into in-the-queue and everything else.
+		$in_queue = array();
+		$others   = array();
+		foreach ( $queue as $singer ) {
+			if ( 'in-the-queue' === ( $singer['status'] ?? '' ) ) {
+				$in_queue[ $singer['id'] ] = $singer;
+			} else {
+				$others[] = $singer;
+			}
+		}
+
+		// Rebuild in-the-queue section in the requested order.
+		$reordered = array();
+		foreach ( $order as $id ) {
+			if ( isset( $in_queue[ $id ] ) ) {
+				$reordered[] = $in_queue[ $id ];
+				unset( $in_queue[ $id ] );
+			}
+		}
+		// Append any in-queue singers missing from the order array.
+		foreach ( $in_queue as $singer ) {
+			$reordered[] = $singer;
+		}
+
+		$new_queue = array_merge( $others, $reordered );
+		$saved     = Venue_Post_Type::save_queue( $post_id, $new_queue );
+
+		if ( false === $saved ) {
+			return new \WP_Error(
+				'save_failed',
+				__( 'Failed to save queue.', 'wp-karaoke' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		return $this->get_queue( $request );
 	}
 
 	/**
@@ -247,24 +492,6 @@ class Queue_Rest_Controller {
 				'validate_callback' => 'rest_validate_request_arg',
 				'description'       => __( 'The slug of the karaoke venue.', 'wp-karaoke' ),
 			),
-		);
-	}
-
-	/**
-	 * Get argument definitions for the update endpoint.
-	 *
-	 * @return array
-	 */
-	private function get_update_args() {
-		return array_merge(
-			$this->get_slug_arg(),
-			array(
-				'queue' => array(
-					'required'    => true,
-					'type'        => 'array',
-					'description' => __( 'The full singer queue array.', 'wp-karaoke' ),
-				),
-			)
 		);
 	}
 
