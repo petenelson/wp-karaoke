@@ -6,7 +6,7 @@
 
 import '../../css/admin/queue-admin.css';
 
-( function () {
+const WPKQAmin = () => {
 	'use strict';
 
 	// ─── State ───────────────────────────────────────────────────────────────
@@ -838,10 +838,9 @@ import '../../css/admin/queue-admin.css';
 		setTimeout( refreshOnStage, PENDING_REFRESH_MS );
 	}
 
-	// Kick off when DOM is ready.
-	if ( document.readyState === 'loading' ) {
-		document.addEventListener( 'DOMContentLoaded', init );
-	} else {
-		init();
-	}
-} )();
+	init();
+};
+
+document.addEventListener( 'DOMContentLoaded', () => {
+	WPKQAmin();
+} );

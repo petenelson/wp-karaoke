@@ -14,32 +14,19 @@
 
 import './style.css';
 
-( function () {
-	const wrapper = document.querySelector(
-		'.wp-block-wp-karaoke-now-playing'
-	);
+/**
+ * Now Playing Block module.
+ *
+ * Handles two responsibilities:
+ *  1. YouTube IFrame Player API — parses a pasted URL, extracts the video ID,
+ *     and loads the video into the embedded player.
+ *  2. Singer ticker — fetches the queue via REST, renders a CSS keyframe
+ *     horizontal scroll, and refreshes on every animation cycle.
+ */
+const NowPlayingBlock = {
 
-	if ( ! wrapper ) {
-		return;
-	}
-
-	// Inject a style tag here for the html element margin reset, which is necessary to ensure the monitor fills the full viewport height. We can't rely on the theme or user CSS to do this, and it needs to be applied after any admin bar styles.
-	const style = document.createElement( 'style' );
-	style.textContent = 'html { margin-top: 0 !important; }';
-	document.head.appendChild( style );
-
-	const restUrl     = wrapper.dataset.restUrl;
-	const advanceUrl  = wrapper.dataset.advanceUrl;
-	const venueSlug   = wrapper.dataset.venueSlug;
-	const tickerInner = wrapper.querySelector( '.wpkq-monitor__ticker-inner' );
-	const urlForm     = wrapper.querySelector( '#wpkq-url-form' );
-	const urlInput    = wrapper.querySelector( '#wpkq-url-input' );
-
-	// -----------------------------------------------------------------------
-	// YouTube IFrame Player API
-	// -----------------------------------------------------------------------
-
-	let player = null;
+	/** @type {YT.Player|null} Active YouTube IFrame player instance. */
+	player: null,
 
 	/**
 	 * Extract a YouTube video ID from a URL or bare ID string.
@@ -55,7 +42,7 @@ import './style.css';
 	 * @param {string} input Raw user input.
 	 * @return {string|null} Video ID, or null if not recognised.
 	 */
-	function parseVideoId( input ) {
+	parseVideoId: ( input ) => {
 		const trimmed = ( input || '' ).trim();
 
 		try {
@@ -86,67 +73,30 @@ import './style.css';
 		}
 
 		return null;
-	}
+	},
 
 	/**
 	 * Load a video into the player by ID.
 	 *
 	 * @param {string} videoId YouTube video ID.
 	 */
-	function loadVideo( videoId ) {
-		if ( player && typeof player.loadVideoById === 'function' ) {
-			player.loadVideoById( videoId );
+	loadVideo: ( videoId ) => {
+		if ( NowPlayingBlock.player && typeof NowPlayingBlock.player.loadVideoById === 'function' ) {
+			NowPlayingBlock.player.loadVideoById( videoId );
 		}
-	}
+	},
 
-	// Initialise the YT.Player once the API script is ready.
-	window.onYouTubeIframeAPIReady = function () {
-		player = new window.YT.Player( 'wpkq-yt-player', {
-			height: '100%',
-			width: '100%',
-			playerVars: {
-				autoplay: 0,
-				controls: 1,
-				rel: 0,
-				modestbranding: 1,
-			},
-		} );
-	};
-
-	// Inject the IFrame API script asynchronously.
-	const apiScript = document.createElement( 'script' );
-	apiScript.src   = 'https://www.youtube.com/iframe_api';
-	document.head.appendChild( apiScript );
-
-	// Handle URL form submission.
-	if ( urlForm && urlInput ) {
-		urlForm.addEventListener( 'submit', function ( e ) {
-			e.preventDefault();
-
-			const videoId = parseVideoId( urlInput.value );
-
-			if ( videoId ) {
-				loadVideo( videoId );
-				urlInput.value = '';
-				urlInput.blur();
-			} else {
-				urlInput.classList.add( 'wpkq-monitor__url-input--error' );
-				setTimeout( function () {
-					urlInput.classList.remove(
-						'wpkq-monitor__url-input--error'
-					);
-				}, 1500 );
-			}
-		} );
-	}
-
-	// -----------------------------------------------------------------------
-	// Singer ticker
-	// -----------------------------------------------------------------------
-
-	if ( ! tickerInner || ! restUrl ) {
-		return;
-	}
+	/**
+	 * Build a placeholder ticker item for an empty queue.
+	 *
+	 * @return {HTMLElement}
+	 */
+	buildEmptyItem: () => {
+		const span = document.createElement( 'span' );
+		span.className   = 'wpkq-monitor__ticker-item';
+		span.textContent = 'No singers in the queue.';
+		return span;
+	},
 
 	/**
 	 * Build an array of ticker <span> elements from singers data.
@@ -154,13 +104,13 @@ import './style.css';
 	 * @param {Array} singers In-the-queue singers.
 	 * @return {HTMLElement[]}
 	 */
-	function buildItems( singers ) {
-		return singers.map( function ( singer ) {
+	buildItems: ( singers ) => {
+		return singers.map( ( singer ) => {
 			const isOnStage  = singer.status === 'on-stage';
 			const prefix     = isOnStage ? 'On Stage: ' : '';
 			const name       = singer.singer_name || '';
 			const singerId   = singer.id || '';
-			const youtubeUrl = singer.status === 'on-stage' ? '' : ( singer.youtube_url || '' );
+			const youtubeUrl = isOnStage ? '' : ( singer.youtube_url || '' );
 
 			const span = document.createElement( 'span' );
 			span.className = 'wpkq-monitor__ticker-item';
@@ -170,131 +120,196 @@ import './style.css';
 			}
 
 			if ( youtubeUrl ) {
-				span.dataset.singerId = singerId;
-				span.classList.add( 'wpkq-monitor__ticker-item--playable' );
-			}
-
-			if ( youtubeUrl ) {
+				span.dataset.singerId   = singerId;
 				span.dataset.youtubeUrl = youtubeUrl;
+				span.classList.add( 'wpkq-monitor__ticker-item--playable' );
 			}
 
 			span.textContent = prefix + name;
 			return span;
 		} );
-	}
+	},
 
 	/**
 	 * Start a one-shot CSS transition that scrolls the ticker from the right
 	 * edge of the container until the last item's left edge reaches the
 	 * container's left edge, then fires 'transitionend'.
+	 *
+	 * @param {HTMLElement} tickerInner Ticker inner element.
 	 */
-	function startScroll() {
+	startScroll: ( tickerInner ) => {
 		const lastItem = tickerInner.lastElementChild;
 		if ( ! lastItem ) {
 			return;
 		}
 
 		const containerWidth = tickerInner.parentElement.offsetWidth;
-		const endX = -lastItem.offsetLeft;
-		const distance = containerWidth - endX;
-		const speed = 100; // px per second
-		const duration = distance / speed;
+		const endX           = -lastItem.offsetLeft;
+		const distance       = containerWidth - endX;
+		const speed          = 100; // px per second
+		const duration       = distance / speed;
 
 		// Snap to start position without transition.
 		tickerInner.style.transition = 'none';
-		tickerInner.style.transform = `translateX( ${ containerWidth }px )`;
+		tickerInner.style.transform  = `translateX( ${ containerWidth }px )`;
 
 		// Force reflow so the snap takes effect before we re-enable transition.
 		void tickerInner.offsetWidth;
 
 		tickerInner.style.transition = `transform ${ duration }s linear`;
-		tickerInner.style.transform = `translateX( ${ endX }px )`;
-	}
+		tickerInner.style.transform  = `translateX( ${ endX }px )`;
+	},
 
 	/**
 	 * Render singer items into the ticker, then start the scroll.
 	 *
-	 * @param {Array} singers Singer objects from the REST API.
+	 * @param {HTMLElement} tickerInner Ticker inner element.
+	 * @param {Array}       singers     Singer objects from the REST API.
 	 */
-	function renderTicker( singers ) {
+	renderTicker: ( tickerInner, singers ) => {
 		tickerInner.innerHTML = '';
 
 		const items = singers.length
-			? buildItems( singers )
-			: [ ( function () {
-				const span = document.createElement( 'span' );
-				span.className = 'wpkq-monitor__ticker-item';
-				span.textContent = 'No singers in the queue.';
-				return span;
-			} )() ];
+			? NowPlayingBlock.buildItems( singers )
+			: [ NowPlayingBlock.buildEmptyItem() ];
 
-		items.forEach( function ( el ) {
-			tickerInner.appendChild( el );
-		} );
+		items.forEach( ( el ) => tickerInner.appendChild( el ) );
 
-		startScroll();
-	}
+		NowPlayingBlock.startScroll( tickerInner );
+	},
 
 	/**
-	 * Fetch the queue from the REST API and pass the first 4 singers to the callback.
+	 * Fetch the queue from the REST API and pass singers to the callback.
 	 *
+	 * @param {string}   restUrl  REST endpoint URL.
 	 * @param {Function} callback Receives an array of singer objects.
 	 */
-	function fetchQueue( callback ) {
+	fetchQueue: ( restUrl, callback ) => {
 		fetch( restUrl )
-			.then( function ( res ) {
-				return res.json();
-			} )
-			.then( function ( data ) {
-				callback( data.queue || [] );
-			} )
-			.catch( function () {
-				callback( [] );
+			.then( ( res ) => res.json() )
+			.then( ( data ) => callback( data.queue || [] ) )
+			.catch( () => callback( [] ) );
+	},
+
+	/**
+	 * Initialise the Now Playing block.
+	 */
+	init: () => {
+		const wrapper = document.querySelector(
+			'.wp-block-wp-karaoke-now-playing'
+		);
+
+		if ( ! wrapper ) {
+			return;
+		}
+
+		// Inject a style tag here for the html element margin reset, which is necessary to ensure the monitor fills the full viewport height. We can't rely on the theme or user CSS to do this, and it needs to be applied after any admin bar styles.
+		const style = document.createElement( 'style' );
+		style.textContent = 'html { margin-top: 0 !important; }';
+		document.head.appendChild( style );
+
+		const restUrl     = wrapper.dataset.restUrl;
+		const advanceUrl  = wrapper.dataset.advanceUrl;
+		const venueSlug   = wrapper.dataset.venueSlug;
+		const tickerInner = wrapper.querySelector( '.wpkq-monitor__ticker-inner' );
+		const urlForm     = wrapper.querySelector( '#wpkq-url-form' );
+		const urlInput    = wrapper.querySelector( '#wpkq-url-input' );
+
+		// -----------------------------------------------------------------------
+		// YouTube IFrame Player API
+		// -----------------------------------------------------------------------
+
+		// Initialise the YT.Player once the API script is ready.
+		window.onYouTubeIframeAPIReady = () => {
+			NowPlayingBlock.player = new window.YT.Player( 'wpkq-yt-player', {
+				height: '100%',
+				width: '100%',
+				playerVars: {
+					autoplay: 0,
+					controls: 1,
+					rel: 0,
+					modestbranding: 1,
+				},
 			} );
-	}
+		};
 
-	// When the scroll completes, fetch a fresh queue and restart.
-	tickerInner.addEventListener( 'transitionend', function () {
-		fetchQueue( renderTicker );
-	} );
+		// Inject the IFrame API script asynchronously.
+		const apiScript = document.createElement( 'script' );
+		apiScript.src   = 'https://www.youtube.com/iframe_api';
+		document.head.appendChild( apiScript );
 
-	// Click a singer item to advance them to on-stage and load their video.
-	tickerInner.addEventListener( 'click', function ( e ) {
-		const item = e.target.closest( '[data-singer-id]' );
-		if ( ! item ) {
-			return;
-		}
+		// Handle URL form submission.
+		if ( urlForm && urlInput ) {
+			urlForm.addEventListener( 'submit', ( e ) => {
+				e.preventDefault();
 
-		// If this is the "On Stage" item, ignore clicks since they're already on stage and we don't want to reload the video.
-		if ( item.classList.contains( 'wpkq-monitor__ticker-item--on-stage' ) ) {
-			return;
-		}
+				const videoId = NowPlayingBlock.parseVideoId( urlInput.value );
 
-		const singerId   = item.dataset.singerId;
-		const youtubeUrl = item.dataset.youtubeUrl || '';
-
-		fetch( advanceUrl, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify( { slug: venueSlug, id: singerId } ),
-		} )
-			.then( function ( res ) {
-				return res.json();
-			} )
-			.then( function ( data ) {
-				if ( data.queue ) {
-					renderTicker( data.queue );
+				if ( videoId ) {
+					NowPlayingBlock.loadVideo( videoId );
+					urlInput.value = '';
+					urlInput.blur();
+				} else {
+					urlInput.classList.add( 'wpkq-monitor__url-input--error' );
+					setTimeout( () => {
+						urlInput.classList.remove(
+							'wpkq-monitor__url-input--error'
+						);
+					}, 1500 );
 				}
-				if ( youtubeUrl ) {
-					const videoId = parseVideoId( youtubeUrl );
-					if ( videoId ) {
-						loadVideo( videoId );
+			} );
+		}
+
+		// -----------------------------------------------------------------------
+		// Singer ticker
+		// -----------------------------------------------------------------------
+
+		if ( ! tickerInner || ! restUrl ) {
+			return;
+		}
+
+		// When the scroll completes, fetch a fresh queue and restart.
+		tickerInner.addEventListener( 'transitionend', () => {
+			NowPlayingBlock.fetchQueue( restUrl, ( singers ) => NowPlayingBlock.renderTicker( tickerInner, singers ) );
+		} );
+
+		// Click a singer item to advance them to on-stage and load their video.
+		tickerInner.addEventListener( 'click', ( e ) => {
+			const item = e.target.closest( '[data-singer-id]' );
+
+			// If this is the "On Stage" item, ignore clicks since they're already on stage and we don't want to reload the video.
+			if ( ! item || item.classList.contains( 'wpkq-monitor__ticker-item--on-stage' ) ) {
+				return;
+			}
+
+			const singerId   = item.dataset.singerId;
+			const youtubeUrl = item.dataset.youtubeUrl || '';
+
+			fetch( advanceUrl, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify( { slug: venueSlug, id: singerId } ),
+			} )
+				.then( ( res ) => res.json() )
+				.then( ( data ) => {
+					if ( data.queue ) {
+						NowPlayingBlock.renderTicker( tickerInner, data.queue );
 					}
-				}
-			} )
-			.catch( function () {} );
-	} );
+					if ( youtubeUrl ) {
+						const videoId = NowPlayingBlock.parseVideoId( youtubeUrl );
+						if ( videoId ) {
+							NowPlayingBlock.loadVideo( videoId );
+						}
+					}
+				} )
+				.catch( () => {} );
+		} );
 
-	// Initial load.
-	fetchQueue( renderTicker );
-} )();
+		// Initial load.
+		NowPlayingBlock.fetchQueue( restUrl, ( singers ) => NowPlayingBlock.renderTicker( tickerInner, singers ) );
+	},
+};
+
+window.addEventListener( 'DOMContentLoaded', () => {
+	NowPlayingBlock.init();
+} );
