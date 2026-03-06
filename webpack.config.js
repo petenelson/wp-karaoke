@@ -4,16 +4,22 @@
  * @package WPKQ
  */
 
-const path = require( 'path' );
-const MiniCssExtractPlugin = require( 'mini-css-extract-plugin' );
+const path                       = require( 'path' );
+const MiniCssExtractPlugin       = require( 'mini-css-extract-plugin' );
+const DependencyExtractionPlugin = require( '@wordpress/dependency-extraction-webpack-plugin' );
 
 module.exports = ( env, argv ) => {
 	const isProduction = argv.mode === 'production';
 
 	return {
 		entry: {
+			// Component 1 — admin queue manager.
 			'admin':    './assets/js/admin/queue-admin.js',
 			'frontend': './assets/js/frontend/frontend.js',
+
+			// Component 2 — Now Playing block.
+			'block-now-playing-editor': './includes/blocks/now-playing/index.js',
+			'block-now-playing-view':   './includes/blocks/now-playing/view.js',
 		},
 
 		output: {
@@ -24,7 +30,7 @@ module.exports = ( env, argv ) => {
 
 		module: {
 			rules: [
-				// JavaScript: transpile with Babel
+				// JavaScript: transpile with Babel (includes JSX for blocks).
 				{
 					test: /\.js$/,
 					exclude: /node_modules/,
@@ -40,12 +46,13 @@ module.exports = ( env, argv ) => {
 										corejs: 3,
 									},
 								],
+								'@babel/preset-react',
 							],
 						},
 					},
 				},
 
-				// CSS: extract to separate files
+				// CSS: extract to separate files.
 				{
 					test: /\.css$/,
 					use: [
@@ -60,9 +67,13 @@ module.exports = ( env, argv ) => {
 			new MiniCssExtractPlugin( {
 				filename: 'css/[name].css',
 			} ),
+
+			// Generates .asset.php dependency files for block scripts and
+			// externalises all @wordpress/* imports as window.wp.* globals.
+			new DependencyExtractionPlugin(),
 		],
 
-		// Import CSS from JS entry points
+		// Import CSS from JS entry points.
 		resolve: {
 			extensions: [ '.js', '.css' ],
 		},
@@ -73,7 +84,7 @@ module.exports = ( env, argv ) => {
 			minimize: isProduction,
 		},
 
-		// Treat SortableJS as an external (loaded separately via WP)
+		// Treat SortableJS as an external (loaded separately via WP).
 		externals: {
 			sortablejs: 'Sortable',
 		},

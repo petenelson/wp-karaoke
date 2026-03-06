@@ -163,11 +163,36 @@ class Queue_Admin {
 
 			<div class="wpkq-content" id="wpkq-content" style="display:none;">
 
+				<!-- On Stage Section -->
+				<section class="wpkq-section wpkq-section--on-stage" id="wpkq-on-stage-section" style="display:none;">
+					<h2 class="wpkq-section-title">
+						<span class="wpkq-badge wpkq-badge--on-stage">🎤</span>
+						<?php esc_html_e( 'On Stage', 'wp-karaoke' ); ?>
+					</h2>
+					<div class="wpkq-table-wrap">
+						<table class="wpkq-table" id="wpkq-on-stage-table">
+							<thead>
+								<tr>
+									<th class="wpkq-col-name"><?php esc_html_e( 'Name', 'wp-karaoke' ); ?></th>
+									<th class="wpkq-col-song"><?php esc_html_e( 'Song', 'wp-karaoke' ); ?></th>
+									<th class="wpkq-col-artist"><?php esc_html_e( 'Artist', 'wp-karaoke' ); ?></th>
+									<th class="wpkq-col-time"><?php esc_html_e( 'Signed Up', 'wp-karaoke' ); ?></th>
+									<th class="wpkq-col-actions"><?php esc_html_e( 'Actions', 'wp-karaoke' ); ?></th>
+								</tr>
+							</thead>
+							<tbody id="wpkq-on-stage-tbody">
+								<!-- Populated by JS -->
+							</tbody>
+						</table>
+					</div>
+				</section>
+
 				<!-- Active Queue Table -->
 				<section class="wpkq-section">
 					<h2 class="wpkq-section-title">
 						<span class="wpkq-badge wpkq-badge--active" id="wpkq-queue-count">0</span>
 						<?php esc_html_e( 'In The Queue', 'wp-karaoke' ); ?>
+						<button class="wpkq-btn wpkq-btn--refresh" id="wpkq-refresh-btn" aria-label="<?php esc_attr_e( 'Refresh queue', 'wp-karaoke' ); ?>">↻ <?php esc_html_e( 'Refresh', 'wp-karaoke' ); ?></button>
 					</h2>
 					<p class="wpkq-section-hint"><?php esc_html_e( 'Drag rows to reorder the queue.', 'wp-karaoke' ); ?></p>
 
@@ -270,6 +295,10 @@ class Queue_Admin {
 							<label for="wpkq-add-artist"><?php esc_html_e( 'Artist', 'wp-karaoke' ); ?></label>
 							<input type="text" id="wpkq-add-artist" maxlength="50" autocomplete="off">
 						</div>
+						<div class="wpkq-field">
+							<label for="wpkq-add-youtube-url"><?php esc_html_e( 'YouTube URL', 'wp-karaoke' ); ?></label>
+							<input type="url" id="wpkq-add-youtube-url" autocomplete="off" placeholder="https://www.youtube.com/watch?v=...">
+						</div>
 					</div>
 					<div class="wpkq-modal-footer">
 						<button class="wpkq-btn wpkq-btn--secondary" id="wpkq-add-modal-cancel"><?php esc_html_e( 'Cancel', 'wp-karaoke' ); ?></button>
@@ -298,6 +327,10 @@ class Queue_Admin {
 						<div class="wpkq-field">
 							<label for="wpkq-edit-artist"><?php esc_html_e( 'Artist', 'wp-karaoke' ); ?></label>
 							<input type="text" id="wpkq-edit-artist" maxlength="50" autocomplete="off">
+						</div>
+						<div class="wpkq-field">
+							<label for="wpkq-edit-youtube-url"><?php esc_html_e( 'YouTube URL', 'wp-karaoke' ); ?></label>
+							<input type="url" id="wpkq-edit-youtube-url" autocomplete="off" placeholder="https://www.youtube.com/watch?v=...">
 						</div>
 					</div>
 					<div class="wpkq-modal-footer">

@@ -45,6 +45,12 @@ import '../../css/admin/queue-admin.css';
 		editSong:       document.getElementById( 'wpkq-edit-song' ),
 		editArtist:     document.getElementById( 'wpkq-edit-artist' ),
 
+		refreshBtn:       document.getElementById( 'wpkq-refresh-btn' ),
+
+		// On Stage section
+		onStageSection:   document.getElementById( 'wpkq-on-stage-section' ),
+		onStageTbody:     document.getElementById( 'wpkq-on-stage-tbody' ),
+
 		// Add Singer modal
 		addSingerBtn:    document.getElementById( 'wpkq-add-singer-btn' ),
 		addModal:        document.getElementById( 'wpkq-add-modal' ),
@@ -54,11 +60,31 @@ import '../../css/admin/queue-admin.css';
 		addName:         document.getElementById( 'wpkq-add-name' ),
 		addSong:         document.getElementById( 'wpkq-add-song' ),
 		addArtist:       document.getElementById( 'wpkq-add-artist' ),
+		addYoutubeUrl:   document.getElementById( 'wpkq-add-youtube-url' ),
+
+		// Edit modal — YouTube URL
+		editYoutubeUrl:  document.getElementById( 'wpkq-edit-youtube-url' ),
 	};
 
 	const { apiBase, nonce, venueSlug, i18n } = wpkqAdmin;
 
 	// ─── Utilities ────────────────────────────────────────────────────────────
+
+	/**
+	 * Generate a random 10-character alphanumeric ID.
+	 *
+	 * @return {string}
+	 */
+	function generateId() {
+		const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+		let id = '';
+		const array = new Uint8Array( 10 );
+		crypto.getRandomValues( array );
+		array.forEach( function ( byte ) {
+			id += chars[ byte % chars.length ];
+		} );
+		return id;
+	}
 
 	/**
 	 * Format a Unix timestamp as a human-readable time string.
@@ -176,6 +202,7 @@ import '../../css/admin/queue-admin.css';
 	 * Render both tables.
 	 */
 	function renderAll() {
+		renderOnStageSection();
 		renderQueueTable();
 		renderPendingTable();
 		renderFinishedTable();
@@ -200,14 +227,25 @@ import '../../css/admin/queue-admin.css';
 			>Add to Queue</button>`;
 		}
 
-		html += `<button
-			class="wpkq-btn wpkq-btn--edit"
-			data-action="edit"
-			data-index="${ globalIndex }"
-			aria-label="Edit singer"
-		>✏️ Edit</button>`;
+		if ( 'on-stage' !== context ) {
+			html += `<button
+				class="wpkq-btn wpkq-btn--edit"
+				data-action="edit"
+				data-index="${ globalIndex }"
+				aria-label="Edit singer"
+			>✏️ Edit</button>`;
+		}
 
 		if ( 'queue' === context ) {
+			html += `<button
+				class="wpkq-btn wpkq-btn--on-stage"
+				data-action="on-stage"
+				data-index="${ globalIndex }"
+				aria-label="Mark as on stage"
+			>🎤 On Stage</button>`;
+		}
+
+		if ( 'queue' === context || 'on-stage' === context ) {
 			html += `<button
 				class="wpkq-btn wpkq-btn--finish"
 				data-action="finish"
@@ -225,6 +263,34 @@ import '../../css/admin/queue-admin.css';
 
 		html += '</div>';
 		return html;
+	}
+
+	/**
+	 * Render the On Stage section (the single singer currently on stage).
+	 */
+	function renderOnStageSection() {
+		const onStage = queue
+			.map( ( s, i ) => ( { singer: s, index: i } ) )
+			.find( ( { singer } ) => singer.status === 'on-stage' );
+
+		if ( ! onStage ) {
+			el.onStageSection.style.display = 'none';
+			el.onStageTbody.innerHTML = '';
+			return;
+		}
+
+		el.onStageSection.style.display = '';
+
+		const { singer, index } = onStage;
+		el.onStageTbody.innerHTML = `
+			<tr class="wpkq-row wpkq-row--on-stage" data-index="${ index }">
+				<td class="wpkq-col-name" data-label="Name">${ escHtml( singer.singer_name ) }</td>
+				<td class="wpkq-col-song" data-label="Song">${ escHtml( singer.song ) }</td>
+				<td class="wpkq-col-artist" data-label="Artist">${ escHtml( singer.artist ) }</td>
+				<td class="wpkq-col-time" data-label="Signed Up">${ formatTime( singer.signup_time ) }</td>
+				<td class="wpkq-col-actions">${ buildActionButtons( index, 'on-stage' ) }</td>
+			</tr>
+		`;
 	}
 
 	/**
@@ -382,6 +448,17 @@ import '../../css/admin/queue-admin.css';
 				saveQueue();
 				break;
 
+			case 'on-stage':
+				// Revert any existing on-stage singer back to in-the-queue.
+				queue.forEach( function ( singer ) {
+					if ( singer.status === 'on-stage' ) {
+						singer.status = 'in-the-queue';
+					}
+				} );
+				queue[ index ].status = 'on-stage';
+				saveQueue();
+				break;
+
 			case 'edit':
 				openEditModal( index );
 				break;
@@ -409,9 +486,10 @@ import '../../css/admin/queue-admin.css';
 	 * Open the Add Singer modal.
 	 */
 	function openAddModal() {
-		el.addName.value   = '';
-		el.addSong.value   = '';
-		el.addArtist.value = '';
+		el.addName.value       = '';
+		el.addSong.value       = '';
+		el.addArtist.value     = '';
+		el.addYoutubeUrl.value = '';
 
 		el.addModal.style.display = '';
 		el.addModal.removeAttribute( 'hidden' );
@@ -437,9 +515,11 @@ import '../../css/admin/queue-admin.css';
 		}
 
 		const newSinger = {
+			id:             generateId(),
 			singer_name:    name,
 			song:           el.addSong.value.trim().substring( 0, 50 ),
 			artist:         el.addArtist.value.trim().substring( 0, 50 ),
+			youtube_url:    el.addYoutubeUrl.value.trim(),
 			signup_time:    Math.floor( Date.now() / 1000 ),
 			completed_time: 0,
 			status:         'in-the-queue',
@@ -463,10 +543,11 @@ import '../../css/admin/queue-admin.css';
 			return;
 		}
 
-		el.editIndex.value  = index;
-		el.editName.value   = singer.singer_name || '';
-		el.editSong.value   = singer.song || '';
-		el.editArtist.value = singer.artist || '';
+		el.editIndex.value      = index;
+		el.editName.value       = singer.singer_name || '';
+		el.editSong.value       = singer.song || '';
+		el.editArtist.value     = singer.artist || '';
+		el.editYoutubeUrl.value = singer.youtube_url || '';
 
 		el.modal.style.display = '';
 		el.modal.removeAttribute( 'hidden' );
@@ -497,6 +578,7 @@ import '../../css/admin/queue-admin.css';
 		queue[ index ].singer_name = el.editName.value.substring( 0, 50 );
 		queue[ index ].song        = el.editSong.value.substring( 0, 50 );
 		queue[ index ].artist      = el.editArtist.value.substring( 0, 50 );
+		queue[ index ].youtube_url = el.editYoutubeUrl.value.trim();
 
 		closeEditModal();
 		saveQueue();
@@ -508,7 +590,11 @@ import '../../css/admin/queue-admin.css';
 	 * Bind all event listeners.
 	 */
 	function bindEvents() {
+		// Refresh button.
+		el.refreshBtn.addEventListener( 'click', fetchQueue );
+
 		// Table delegation.
+		el.onStageTbody.addEventListener( 'click', handleTableClick );
 		el.queueTbody.addEventListener( 'click', handleTableClick );
 		el.pendingTbody.addEventListener( 'click', handleTableClick );
 
@@ -524,7 +610,7 @@ import '../../css/admin/queue-admin.css';
 			}
 		} );
 
-		[ el.addName, el.addSong, el.addArtist ].forEach( function ( input ) {
+		[ el.addName, el.addSong, el.addArtist, el.addYoutubeUrl ].forEach( function ( input ) {
 			input.addEventListener( 'keydown', function ( e ) {
 				if ( 'Enter' === e.key ) {
 					saveAddModal();
@@ -557,7 +643,7 @@ import '../../css/admin/queue-admin.css';
 		} );
 
 		// Save on Enter in modal inputs.
-		[ el.editName, el.editSong, el.editArtist ].forEach( function ( input ) {
+		[ el.editName, el.editSong, el.editArtist, el.editYoutubeUrl ].forEach( function ( input ) {
 			input.addEventListener( 'keydown', function ( e ) {
 				if ( 'Enter' === e.key ) {
 					saveEditModal();

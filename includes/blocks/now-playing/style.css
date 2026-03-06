@@ -1,0 +1,267 @@
+/**
+ * Now Playing Block — frontend styles.
+ *
+ * Implements the CSS-only infinite horizontal scroll technique:
+ * https://github.com/constgenius/InfiniteScroll
+ *
+ * Content inside .wpkq-monitor__ticker-inner is duplicated by view.js so the
+ * -50% translateX animation creates a seamless, endless loop.
+ *
+ * @package WPKQ
+ */
+
+/* -----------------------------------------------------------------------
+   Password gate
+   ----------------------------------------------------------------------- */
+
+.wpkq-monitor__password-gate {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-height: 100vh;
+	background: #1a1a1a;
+	color: #fff;
+	padding: 40px 20px;
+	box-sizing: border-box;
+}
+
+.wpkq-monitor__password-title {
+	font-size: 2rem;
+	margin: 0 0 24px;
+}
+
+.wpkq-monitor__password-error {
+	color: #ff6b6b;
+	margin: 0 0 16px;
+	font-size: 14px;
+}
+
+.wpkq-monitor__password-form {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	width: 100%;
+	max-width: 320px;
+}
+
+.wpkq-monitor__password-label {
+	display: block;
+	margin-bottom: 6px;
+	font-size: 14px;
+	color: #ccc;
+}
+
+.wpkq-monitor__password-input {
+	width: 100%;
+	padding: 10px 14px;
+	font-size: 16px;
+	background: #2d2d2d;
+	border: 1px solid #555;
+	color: #fff;
+	border-radius: 4px;
+	box-sizing: border-box;
+}
+
+.wpkq-monitor__password-input:focus {
+	outline: 2px solid #3fd2f9;
+	outline-offset: 2px;
+	border-color: #3fd2f9;
+}
+
+.wpkq-monitor__password-submit {
+	padding: 12px;
+	background: #3fd2f9;
+	color: #000;
+	border: none;
+	border-radius: 4px;
+	font-size: 16px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.wpkq-monitor__password-submit:hover,
+.wpkq-monitor__password-submit:focus {
+	background: #2ab8de;
+}
+
+/* -----------------------------------------------------------------------
+   Authorized monitor view
+   ----------------------------------------------------------------------- */
+
+.wpkq-monitor {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+	overflow: hidden;
+	background: #000;
+}
+
+/* URL bar — lets the KJ paste a YouTube link to load a video. */
+.wpkq-monitor__url-bar {
+	flex-shrink: 0;
+	display: flex;
+	gap: 8px;
+	padding: 8px 12px;
+	background: #1a1a1a;
+	border-bottom: 1px solid #333;
+}
+
+.wpkq-monitor__url-input {
+	flex: 1;
+	padding: 6px 12px;
+	font-size: 14px;
+	background: #2d2d2d;
+	border: 1px solid #555;
+	color: #fff;
+	border-radius: 4px;
+	min-width: 0;
+}
+
+.wpkq-monitor__url-input:focus {
+	outline: 2px solid #3fd2f9;
+	outline-offset: 2px;
+	border-color: #3fd2f9;
+}
+
+.wpkq-monitor__url-input--error {
+	border-color: #ff6b6b;
+	outline-color: #ff6b6b;
+}
+
+.wpkq-monitor__url-submit {
+	padding: 6px 16px;
+	background: #3fd2f9;
+	color: #000;
+	border: none;
+	border-radius: 4px;
+	font-size: 14px;
+	font-weight: 700;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: background 0.15s ease;
+}
+
+.wpkq-monitor__url-submit:hover,
+.wpkq-monitor__url-submit:focus {
+	background: #2ab8de;
+}
+
+/* YouTube player area. */
+.wpkq-monitor__player-wrap {
+	flex: 1;
+	min-height: 0; /* Prevents flex overflow. */
+	background: #000;
+}
+
+.wpkq-monitor__player-wrap iframe {
+	display: block;
+	width: 100%;
+	height: 100%;
+	border: none;
+}
+
+/* -----------------------------------------------------------------------
+   Ticker — infinite horizontal scroll
+   ----------------------------------------------------------------------- */
+
+.wpkq-monitor__ticker-wrap {
+	flex-shrink: 0;
+	height: 64px;
+	background: #111;
+	overflow: hidden;
+}
+
+.wpkq-monitor__ticker {
+	display: flex;
+	align-items: center;
+	height: 100%;
+	overflow: hidden;
+	/* Gradient mask fades the edges for a polished look. */
+	-webkit-mask-image: linear-gradient(
+		to right,
+		transparent 0%,
+		black 5%,
+		black 95%,
+		transparent 100%
+	);
+	mask-image: linear-gradient(
+		to right,
+		transparent 0%,
+		black 5%,
+		black 95%,
+		transparent 100%
+	);
+}
+
+.wpkq-monitor__ticker-inner {
+	display: inline-flex;
+	flex-wrap: nowrap;
+	white-space: nowrap;
+}
+
+.wpkq-monitor__ticker-item {
+	display: inline-flex;
+	align-items: center;
+	padding: 8px 20px;
+	margin: 0 8px;
+	background: #333;
+	color: #fff;
+	border-radius: 4px;
+	font-size: 18px;
+	font-family: sans-serif;
+	user-select: none;
+}
+
+.wpkq-monitor__ticker-item--on-stage {
+	background: #3fd2f9;
+	color: #000;
+	font-weight: 700;
+}
+
+.wpkq-monitor__ticker-item--playable {
+	cursor: pointer;
+}
+
+.wpkq-monitor__ticker-item--playable:hover {
+	filter: brightness( 1.2 );
+}
+
+/* Styles for adjusting the theme's output. */
+.wp-theme-twentyfifteen.wpkq-has-now-playing-block {
+
+	/* Hide various items */
+	.site-header,
+	.site-footer,
+	.entry-header,
+	.entry-footer,
+	#sidebar,
+	#wpadminbar {
+		display: none;
+	}
+
+	.site {
+		margin: 0;
+		max-width: 100%;
+	}
+
+	/* Full-width content area */
+	.site-content {
+		width: 100%;
+		float: none;
+		margin: 0;
+	}
+
+	.site-main {
+		padding: 0;
+		margin: 0;
+
+		.entry-content, 
+		.hentry {
+			padding: 0;
+			margin: 0;
+			width: 100%;
+		}
+	}
+}

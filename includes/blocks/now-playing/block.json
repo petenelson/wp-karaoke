@@ -1,0 +1,29 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wp-karaoke/now-playing",
+	"version": "1.0.0",
+	"title": "Now Playing",
+	"category": "widgets",
+	"description": "Displays the karaoke now playing monitor with a singer queue ticker.",
+	"textdomain": "wp-karaoke",
+	"supports": {
+		"html": false,
+		"align": [ "full" ]
+	},
+	"attributes": {
+		"venueId": {
+			"type": "integer",
+			"default": 0
+		},
+		"password": {
+			"type": "string",
+			"default": ""
+		}
+	},
+	"editorScript": "file:../../../dist/js/block-now-playing-editor.js",
+	"editorStyle": "file:../../../dist/css/block-now-playing-editor.css",
+	"style": "file:../../../dist/css/block-now-playing-view.css",
+	"viewScript": "file:../../../dist/js/block-now-playing-view.js",
+	"render": "file:./markup.php"
+}
