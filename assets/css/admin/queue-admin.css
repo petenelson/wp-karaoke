@@ -70,6 +70,21 @@
 	min-height: 42px;
 }
 
+.wpkq-btn--refresh {
+	background: none;
+	border: 1.5px solid var( --wpkq-border );
+	color: var( --wpkq-text-muted );
+	font-size: 0.8rem;
+	padding: 4px 10px;
+	min-height: 28px;
+	margin-left: auto;
+}
+
+.wpkq-btn--refresh:hover {
+	background: var( --wpkq-surface-2 );
+	color: var( --wpkq-text );
+}
+
 /* ─── Save Status ────────────────────────────────────────────────────────────── */
 .wpkq-save-status {
 	font-size: 0.875rem;
@@ -164,6 +179,27 @@
 	color: #fff;
 }
 
+.wpkq-badge--finished {
+	background: var( --wpkq-text-muted );
+	color: #fff;
+}
+
+.wpkq-badge--on-stage {
+	background: var( --wpkq-accent );
+	color: #000;
+}
+
+/* ─── On Stage Section ───────────────────────────────────────────────────────── */
+.wpkq-section--on-stage {
+	border-color: var( --wpkq-accent );
+	box-shadow: 0 2px 12px rgba( 245, 158, 11, 0.18 );
+}
+
+.wpkq-section--on-stage .wpkq-section-title {
+	background: #fffbeb;
+	border-bottom-color: #fde68a;
+}
+
 /* ─── Table ──────────────────────────────────────────────────────────────────── */
 .wpkq-table-wrap {
 	overflow-x: auto;
@@ -235,6 +271,30 @@
 .wpkq-col-actions {
 	width: 1%;
 	white-space: nowrap;
+}
+
+/* On Stage row */
+.wpkq-row--on-stage {
+	background: #fffbeb !important;
+	outline: 2px solid var( --wpkq-accent );
+	outline-offset: -2px;
+}
+
+.wpkq-row--on-stage:hover {
+	background: #fef3c7 !important;
+}
+
+.wpkq-on-stage-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	background: var( --wpkq-accent );
+	color: #000;
+	font-size: 0.7rem;
+	font-weight: 700;
+	border-radius: 99px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	vertical-align: middle;
 }
 
 /* ─── Drag Handle ─────────────────────────────────────────────────────────────── */
@@ -325,6 +385,15 @@
 
 .wpkq-btn--edit:hover {
 	background: #ddd6fe;
+}
+
+.wpkq-btn--on-stage {
+	background: #fef3c7;
+	color: #92400e;
+}
+
+.wpkq-btn--on-stage:hover {
+	background: #fde68a;
 }
 
 .wpkq-btn--finish {

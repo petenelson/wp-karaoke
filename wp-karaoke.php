@@ -30,6 +30,7 @@ if ( file_exists( WPKQ_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 require_once WPKQ_PLUGIN_DIR . 'includes/post-type/class-venue-post-type.php';
 require_once WPKQ_PLUGIN_DIR . 'includes/rest/class-queue-rest-controller.php';
 require_once WPKQ_PLUGIN_DIR . 'includes/admin/class-queue-admin.php';
+require_once WPKQ_PLUGIN_DIR . 'includes/blocks/class-now-playing-block.php';
 
 /**
  * Initialize the plugin.
@@ -43,5 +44,8 @@ function wpkq_init() {
 
 	$queue_admin = new Admin\Queue_Admin();
 	$queue_admin->register();
+
+	$now_playing_block = new Blocks\Now_Playing_Block();
+	$now_playing_block->register();
 }
 add_action( 'plugins_loaded', __NAMESPACE__ . '\\wpkq_init' );

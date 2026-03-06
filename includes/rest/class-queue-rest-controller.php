@@ -63,6 +63,27 @@ class Queue_Rest_Controller {
 				),
 			)
 		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			self::ROUTE . '/advance',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'advance_singer' ),
+				'permission_callback' => array( $this, 'advance_permissions_check' ),
+				'args'                => array(
+					'slug' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_title',
+					),
+					'id'   => array(
+						'required' => true,
+						'type'     => 'string',
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -83,16 +104,36 @@ class Queue_Rest_Controller {
 
 		$queue = $result['queue'];
 
-		// Filter to in-the-queue only for non-logged-in users.
+		// Filter to active singers only for non-logged-in users.
 		if ( ! is_user_logged_in() ) {
 			$queue = array_values(
 				array_filter(
 					$queue,
 					function( $singer ) {
-						return isset( $singer['status'] ) && 'in-the-queue' === $singer['status'];
+						return isset( $singer['status'] ) && in_array( $singer['status'], array( 'on-stage', 'in-the-queue' ), true );
 					}
 				)
 			);
+
+			// Sort: on-stage singer first.
+			usort(
+				$queue,
+				function( $a, $b ) {
+					$a_on_stage = isset( $a['status'] ) && 'on-stage' === $a['status'];
+					$b_on_stage = isset( $b['status'] ) && 'on-stage' === $b['status'];
+					return $b_on_stage <=> $a_on_stage;
+				}
+			);
+
+			// Only return public fields.
+			foreach ( $queue as &$singer ) {
+				$singer = array(
+					'id'          => $singer['id'] ?? '',
+					'singer_name' => $singer['singer_name'],
+					'youtube_url' => $singer['youtube_url'] ?? '',
+					'status'      => $singer['status'],
+				);
+			}
 		}
 
 		return rest_ensure_response(
@@ -176,12 +217,14 @@ class Queue_Rest_Controller {
 	 * @return array Sanitized singer data.
 	 */
 	private function sanitize_singer( $singer ) {
-		$valid_statuses = array( 'kj-received', 'in-the-queue', 'finished' );
+		$valid_statuses = array( 'kj-received', 'in-the-queue', 'on-stage', 'finished' );
 
 		return array(
+			'id'             => isset( $singer['id'] ) ? preg_replace( '/[^A-Za-z0-9]/', '', $singer['id'] ) : '',
 			'singer_name'    => isset( $singer['singer_name'] ) ? substr( sanitize_text_field( $singer['singer_name'] ), 0, 50 ) : '',
 			'song'           => isset( $singer['song'] ) ? substr( sanitize_text_field( $singer['song'] ), 0, 50 ) : '',
 			'artist'         => isset( $singer['artist'] ) ? substr( sanitize_text_field( $singer['artist'] ), 0, 50 ) : '',
+			'youtube_url'    => isset( $singer['youtube_url'] ) ? esc_url_raw( $singer['youtube_url'] ) : '',
 			'signup_time'    => isset( $singer['signup_time'] ) ? absint( $singer['signup_time'] ) : 0,
 			'completed_time' => isset( $singer['completed_time'] ) ? absint( $singer['completed_time'] ) : 0,
 			'status'         => ( isset( $singer['status'] ) && in_array( $singer['status'], $valid_statuses, true ) )
@@ -223,5 +266,95 @@ class Queue_Rest_Controller {
 				),
 			)
 		);
+	}
+
+	/**
+	 * Check permissions for the advance endpoint using the venue monitor cookie.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return bool|\WP_Error
+	 */
+	public function advance_permissions_check( \WP_REST_Request $request ) {
+		$slug = $request->get_param( 'slug' );
+
+		$posts = get_posts(
+			array(
+				'name'           => $slug,
+				'post_type'      => 'karaoke-venue',
+				'post_status'    => 'publish',
+				'posts_per_page' => 1,
+			)
+		);
+
+		if ( empty( $posts ) ) {
+			return new \WP_Error(
+				'invalid_venue',
+				__( 'Venue not found.', 'wp-karaoke' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$password    = get_post_meta( $posts[0]->ID, \WPKQ\Blocks\Now_Playing_Block::PASSWORD_META_KEY, true );
+		$cookie_name = \WPKQ\Blocks\Now_Playing_Block::get_cookie_name( $slug );
+
+		if (
+			empty( $password ) ||
+			! isset( $_COOKIE[ $cookie_name ] ) || // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			! hash_equals( md5( $password ), $_COOKIE[ $cookie_name ] ) // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_md5,WordPress.Security.ValidatedSanitizedInput
+		) {
+			return new \WP_Error(
+				'rest_forbidden',
+				__( 'Invalid monitor credentials.', 'wp-karaoke' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * POST /wpkq/v1/queue/advance
+	 *
+	 * Marks the current on-stage singer as finished and promotes the given singer to on-stage.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function advance_singer( \WP_REST_Request $request ) {
+		$slug   = $request->get_param( 'slug' );
+		$id     = preg_replace( '/[^A-Za-z0-9]/', '', (string) $request->get_param( 'id' ) );
+		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$post_id = $result['post_id'];
+		$queue   = $result['queue'];
+		$found   = false;
+
+		foreach ( $queue as &$singer ) {
+			if ( 'on-stage' === ( $singer['status'] ?? '' ) ) {
+				$singer['status']         = 'finished';
+				$singer['completed_time'] = time();
+			}
+			if ( isset( $singer['id'] ) && $singer['id'] === $id ) {
+				$singer['status'] = 'on-stage';
+				$found            = true;
+			}
+		}
+		unset( $singer );
+
+		if ( ! $found ) {
+			return new \WP_Error(
+				'singer_not_found',
+				__( 'Singer not found in queue.', 'wp-karaoke' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		Venue_Post_Type::save_queue( $post_id, $queue );
+
+		return $this->get_queue( $request );
 	}
 }

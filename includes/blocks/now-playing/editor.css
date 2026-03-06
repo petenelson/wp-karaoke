@@ -1,0 +1,27 @@
+/**
+ * Now Playing Block — editor styles.
+ *
+ * @package WPKQ
+ */
+
+.wpkq-monitor-editor-preview {
+	background: #1a1a1a;
+	color: #fff;
+	padding: 24px;
+	text-align: center;
+	min-height: 120px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 4px;
+}
+
+.wpkq-monitor-editor-preview__notice {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.wpkq-monitor-editor-preview__notice--warning {
+	color: #ffd700;
+}
