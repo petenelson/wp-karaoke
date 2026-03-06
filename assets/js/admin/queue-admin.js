@@ -569,6 +569,8 @@ const WPKQAmin = () => {
 			forceFallback: true,
 			fallbackOnBody: true,
 			swapThreshold: 0.65,
+			delayOnTouchOnly: true,
+			delay: 100,
 
 			onStart() {
 				isDragging = true;
