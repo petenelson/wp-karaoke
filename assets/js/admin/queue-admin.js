@@ -566,7 +566,7 @@ const WPKQAmin = () => {
 			dragClass: 'wpkq-row--drag',
 
 			// Required for touch devices.
-			forceFallback: false,
+			forceFallback: true,
 			fallbackOnBody: true,
 			swapThreshold: 0.65,
 
