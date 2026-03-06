@@ -1,0 +1,23 @@
+/**
+ * Singer Signup Block — editor preview styles.
+ *
+ * @package WPKQ
+ */
+
+.wpkq-signup-editor-preview {
+	padding: 1rem;
+	border: 2px dashed #cbd5e1;
+	border-radius: 8px;
+	background: #f8fafc;
+}
+
+.wpkq-signup-editor-preview__notice {
+	margin: 0;
+	font-size: 0.9rem;
+	color: #64748b;
+	font-style: italic;
+}
+
+.wpkq-signup-editor-preview__notice--warning {
+	color: #b45309;
+}

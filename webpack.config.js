@@ -20,6 +20,10 @@ module.exports = ( env, argv ) => {
 			// Component 2 — Now Playing block.
 			'block-now-playing-editor': './includes/blocks/now-playing/index.js',
 			'block-now-playing-view':   './includes/blocks/now-playing/view.js',
+
+			// Component 3 — Singer Signup block.
+			'block-singer-signup-editor': './includes/blocks/singer-signup/index.js',
+			'block-singer-signup-view':   './includes/blocks/singer-signup/view.js',
 		},
 
 		output: {

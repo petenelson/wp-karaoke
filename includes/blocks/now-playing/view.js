@@ -49,6 +49,7 @@ import './style.css';
 	 *   https://youtu.be/ID
 	 *   https://www.youtube.com/embed/ID
 	 *   https://www.youtube.com/shorts/ID
+	 *
 	 *   A bare 11-character video ID
 	 *
 	 * @param {string} input Raw user input.

@@ -1,0 +1,130 @@
+/**
+ * Singer Signup Block — frontend styles.
+ *
+ * @package WPKQ
+ */
+
+.wpkq-signup {
+	max-width: 480px;
+	margin: 0 auto;
+	padding: 1.5rem;
+	background: #fff;
+	border: 1px solid #e2e8f0;
+	border-radius: 8px;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* ── Unconfigured / error placeholders ─────────────────────────── */
+
+.wpkq-signup--unconfigured,
+.wpkq-signup--error {
+	color: #64748b;
+	font-style: italic;
+}
+
+/* ── Form fields ────────────────────────────────────────────────── */
+
+.wpkq-signup__field {
+	margin-bottom: 1rem;
+}
+
+.wpkq-signup__label {
+	display: block;
+	margin-bottom: 0.25rem;
+	font-size: 0.9rem;
+	font-weight: 600;
+	color: #1e293b;
+}
+
+.wpkq-signup__required {
+	color: #ef4444;
+	margin-left: 2px;
+}
+
+.wpkq-signup__input {
+	display: block;
+	width: 100%;
+	padding: 0.5rem 0.75rem;
+	font-size: 1rem;
+	border: 1px solid #cbd5e1;
+	border-radius: 6px;
+	background: #f8fafc;
+	color: #0f172a;
+	box-sizing: border-box;
+	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.wpkq-signup__input:focus {
+	outline: none;
+	border-color: #6366f1;
+	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+	background: #fff;
+}
+
+/* ── Error message ──────────────────────────────────────────────── */
+
+.wpkq-signup__error {
+	margin: 0 0 1rem;
+	padding: 0.5rem 0.75rem;
+	background: #fef2f2;
+	border: 1px solid #fca5a5;
+	border-radius: 6px;
+	color: #b91c1c;
+	font-size: 0.9rem;
+}
+
+/* ── Submit button ──────────────────────────────────────────────── */
+
+.wpkq-signup__submit {
+	display: block;
+	width: 100%;
+	padding: 0.65rem 1rem;
+	font-size: 1rem;
+	font-weight: 600;
+	background: #6366f1;
+	color: #fff;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background 0.15s;
+}
+
+.wpkq-signup__submit:hover {
+	background: #4f46e5;
+}
+
+.wpkq-signup__submit:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+/* ── Success state ──────────────────────────────────────────────── */
+
+.wpkq-signup__success {
+	text-align: center;
+	padding: 1.5rem 1rem;
+}
+
+.wpkq-signup__success-message {
+	font-size: 1.1rem;
+	font-weight: 600;
+	color: #15803d;
+	margin-bottom: 1.25rem;
+}
+
+.wpkq-signup__another {
+	display: inline-block;
+	padding: 0.5rem 1.25rem;
+	font-size: 0.95rem;
+	background: transparent;
+	color: #6366f1;
+	border: 1px solid #6366f1;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+}
+
+.wpkq-signup__another:hover {
+	background: #6366f1;
+	color: #fff;
+}

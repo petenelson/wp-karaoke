@@ -97,6 +97,7 @@ class Queue_Admin {
 				'i18n'      => array(
 					'confirmFinished' => __( 'Mark this singer as finished? This cannot be undone.', 'wp-karaoke' ),
 					'confirmDelete'   => __( 'Remove this singer from the queue? This cannot be undone.', 'wp-karaoke' ),
+					'confirmReset'    => __( 'Reset the entire queue? This will remove all singers and cannot be undone.', 'wp-karaoke' ),
 					'saving'          => __( 'Saving...', 'wp-karaoke' ),
 					'loading'         => __( 'Loading...', 'wp-karaoke' ),
 					'saveError'       => __( 'Error saving queue. Please try again.', 'wp-karaoke' ),
@@ -273,7 +274,15 @@ class Queue_Admin {
 					</div>
 				</section>
 
-			</div><!-- /.wpkq-content -->
+				<!-- Reset Queue -->
+
+			<div class="wpkq-footer">
+				<button class="wpkq-btn wpkq-btn--danger" id="wpkq-reset-queue-btn">
+					<?php esc_html_e( 'Reset Queue', 'wp-karaoke' ); ?>
+				</button>
+			</div>
+
+		</div><!-- /.wpkq-content -->
 
 			<!-- Add Singer Modal -->
 			<div class="wpkq-modal-overlay" id="wpkq-add-modal" role="dialog" aria-modal="true" aria-labelledby="wpkq-add-modal-title" style="display:none;">

@@ -46,14 +46,23 @@ class Queue_Rest_Controller {
 	 */
 	public function register_routes() {
 		// GET /wpkq/v1/queue — fetch queue.
+		// DELETE /wpkq/v1/queue — reset queue to empty.
 		register_rest_route(
 			self::NAMESPACE,
 			self::ROUTE,
 			array(
-				'methods'             => \WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'get_queue' ),
-				'permission_callback' => '__return_true',
-				'args'                => $this->get_slug_arg(),
+				array(
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'get_queue' ),
+					'permission_callback' => '__return_true',
+					'args'                => $this->get_slug_arg(),
+				),
+				array(
+					'methods'             => \WP_REST_Server::DELETABLE,
+					'callback'            => array( $this, 'reset_queue' ),
+					'permission_callback' => array( $this, 'update_queue_permissions_check' ),
+					'args'                => $this->get_slug_arg(),
+				),
 			)
 		);
 
@@ -105,6 +114,37 @@ class Queue_Rest_Controller {
 							'required'    => true,
 							'type'        => 'array',
 							'description' => __( 'Array of singer IDs in the desired queue order.', 'wp-karaoke' ),
+						),
+					)
+				),
+			)
+		);
+
+		// POST /wpkq/v1/queue/signup — public singer self-signup.
+		register_rest_route(
+			self::NAMESPACE,
+			self::ROUTE . '/signup',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'signup_singer' ),
+				'permission_callback' => '__return_true',
+				'args'                => array_merge(
+					$this->get_slug_arg(),
+					array(
+						'singer_name' => array(
+							'required'          => true,
+							'type'              => 'string',
+							'sanitize_callback' => 'sanitize_text_field',
+						),
+						'song'        => array(
+							'required'          => false,
+							'type'              => 'string',
+							'sanitize_callback' => 'sanitize_text_field',
+						),
+						'artist'      => array(
+							'required'          => false,
+							'type'              => 'string',
+							'sanitize_callback' => 'sanitize_text_field',
 						),
 					)
 				),
@@ -456,6 +496,35 @@ class Queue_Rest_Controller {
 	}
 
 	/**
+	 * DELETE /wpkq/v1/queue
+	 *
+	 * Resets the queue to an empty array.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function reset_queue( \WP_REST_Request $request ) {
+		$slug   = $request->get_param( 'slug' );
+		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$saved = Venue_Post_Type::save_queue( $result['post_id'], [] );
+
+		if ( false === $saved ) {
+			return new \WP_Error(
+				'save_failed',
+				__( 'Failed to reset queue.', 'wp-karaoke' ),
+				[ 'status' => 500 ]
+			);
+		}
+
+		return $this->get_queue( $request );
+	}
+
+	/**
 	 * Sanitize a single singer record.
 	 *
 	 * @param array $singer Raw singer data.
@@ -537,6 +606,59 @@ class Queue_Rest_Controller {
 		}
 
 		return true;
+	}
+
+	/**
+	 * POST /wpkq/v1/queue/signup
+	 *
+	 * Public endpoint for audience members to sign up to sing.
+	 * Adds the singer with status 'kj-received'; the KJ reviews and promotes them.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function signup_singer( \WP_REST_Request $request ) {
+		$slug   = $request->get_param( 'slug' );
+		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$post_id = $result['post_id'];
+		$queue   = $result['queue'];
+
+		$new_singer = array(
+			'id'             => wp_generate_password( 10, false, false ),
+			'singer_name'    => substr( sanitize_text_field( $request->get_param( 'singer_name' ) ?? '' ), 0, 50 ),
+			'song'           => substr( sanitize_text_field( $request->get_param( 'song' ) ?? '' ), 0, 50 ),
+			'artist'         => substr( sanitize_text_field( $request->get_param( 'artist' ) ?? '' ), 0, 50 ),
+			'youtube_url'    => '',
+			'signup_time'    => time(),
+			'completed_time' => 0,
+			'status'         => 'kj-received',
+		);
+
+		if ( empty( $new_singer['singer_name'] ) ) {
+			return new \WP_Error(
+				'missing_name',
+				__( 'Singer name is required.', 'wp-karaoke' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$queue[] = $new_singer;
+		$saved   = Venue_Post_Type::save_queue( $post_id, $queue );
+
+		if ( false === $saved ) {
+			return new \WP_Error(
+				'save_failed',
+				__( 'Failed to save signup.', 'wp-karaoke' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		return rest_ensure_response( array( 'success' => true ) );
 	}
 
 	/**

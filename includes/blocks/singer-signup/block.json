@@ -1,0 +1,24 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wp-karaoke/singer-signup",
+	"version": "1.0.0",
+	"title": "Singer Signup",
+	"category": "widgets",
+	"description": "Lets audience members sign up to sing at a karaoke venue.",
+	"textdomain": "wp-karaoke",
+	"supports": {
+		"html": false
+	},
+	"attributes": {
+		"venueId": {
+			"type": "integer",
+			"default": 0
+		}
+	},
+	"editorScript": "file:../../../dist/js/block-singer-signup-editor.js",
+	"editorStyle": "file:../../../dist/css/block-singer-signup-editor.css",
+	"style": "file:../../../dist/css/block-singer-signup-view.css",
+	"viewScript": "file:../../../dist/js/block-singer-signup-view.js",
+	"render": "file:./markup.php"
+}

@@ -31,7 +31,7 @@
 }
 
 /* ─── Header ────────────────────────────────────────────────────────────────── */
-.wpkq-header {
+.wpkq-header, .wpkq-footer {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -40,6 +40,17 @@
 	margin-bottom: 28px;
 	padding-bottom: 20px;
 	border-bottom: 2px solid var( --wpkq-border );
+}
+
+.wpkq-footer {
+	border-top: 2px solid var( --wpkq-border );
+	border-bottom: none;
+	padding: 20px 0 0;
+}
+
+.wpkq-btn--danger {
+	background: var( --wpkq-danger );
+	color: #fff;
 }
 
 .wpkq-title {

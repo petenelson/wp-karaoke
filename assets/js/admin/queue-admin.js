@@ -14,6 +14,12 @@ import '../../css/admin/queue-admin.css';
 	/** @type {Array} Full singer queue from the API */
 	let queue = [];
 
+	/** @type {boolean} True while a drag is in progress — suppresses auto-refresh */
+	let isDragging = false;
+
+	/** Milliseconds between New Sign-Ups auto-refreshes */
+	const PENDING_REFRESH_MS = parseInt( wpkqAdmin.refreshInterval, 10 ) || 1000;
+
 	// ─── DOM References ───────────────────────────────────────────────────────
 
 	const el = {
@@ -46,6 +52,7 @@ import '../../css/admin/queue-admin.css';
 		editArtist:     document.getElementById( 'wpkq-edit-artist' ),
 
 		refreshBtn:       document.getElementById( 'wpkq-refresh-btn' ),
+		resetQueueBtn:    document.getElementById( 'wpkq-reset-queue-btn' ),
 
 		// On Stage section
 		onStageSection:   document.getElementById( 'wpkq-on-stage-section' ),
@@ -266,6 +273,91 @@ import '../../css/admin/queue-admin.css';
 		}
 	}
 
+	/**
+	 * Reset the queue to empty via the REST API.
+	 *
+	 * @return {Promise<void>}
+	 */
+	async function resetQueue() {
+		showSaveStatus( i18n.saving );
+		try {
+			const url = `${ apiBase }?slug=${ encodeURIComponent( venueSlug ) }`;
+			const response = await fetch( url, {
+				method: 'DELETE',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-WP-Nonce': nonce,
+				},
+			} );
+
+			if ( ! response.ok ) {
+				throw new Error( `HTTP ${ response.status }` );
+			}
+
+			const data = await response.json();
+			queue = data.queue || [];
+			showSaveStatus( '✓ Queue reset' );
+			renderAll();
+		} catch ( err ) {
+			showSaveStatus( i18n.saveError, true );
+			console.error( 'WPKQ resetQueue error:', err );
+		}
+	}
+
+	/**
+	 * Silently fetch the queue and re-render only the New Sign-Ups table.
+	 * Used for the auto-refresh interval so other tables are not disturbed.
+	 *
+	 * @return {Promise<void>}
+	 */
+	async function refreshPending() {
+		if ( ! isDragging ) {
+			try {
+				const url = `${ apiBase }?slug=${ encodeURIComponent( venueSlug ) }`;
+				const response = await fetch( url, {
+					headers: { 'X-WP-Nonce': nonce },
+				} );
+
+				if ( response.ok ) {
+					const data = await response.json();
+					queue = data.queue || [];
+					renderPendingTable();
+				}
+			} catch ( err ) {
+				// Silent — do not disrupt the UI for background refresh failures.
+			}
+		}
+
+		setTimeout( refreshPending, PENDING_REFRESH_MS );
+	}
+
+	/**
+	 * Silently fetch the queue and re-render only the New Sign-Ups table.
+	 * Used for the auto-refresh interval so other tables are not disturbed.
+	 *
+	 * @return {Promise<void>}
+	 */
+	async function refreshOnStage() {
+		if ( ! isDragging ) {
+			try {
+				const url = `${ apiBase }?slug=${ encodeURIComponent( venueSlug ) }`;
+				const response = await fetch( url, {
+					headers: { 'X-WP-Nonce': nonce },
+				} );
+
+				if ( response.ok ) {
+					const data = await response.json();
+					queue = data.queue || [];
+					renderOnStageSection();
+				}
+			} catch ( err ) {
+				// Silent — do not disrupt the UI for background refresh failures.
+			}
+		}
+
+		setTimeout( refreshOnStage, PENDING_REFRESH_MS );
+	}
+
 	// ─── Rendering ────────────────────────────────────────────────────────────
 
 	/**
@@ -478,7 +570,12 @@ import '../../css/admin/queue-admin.css';
 			fallbackOnBody: true,
 			swapThreshold: 0.65,
 
+			onStart() {
+				isDragging = true;
+			},
+
 			onEnd( evt ) {
+				isDragging = false;
 				const inQueueSingers = queue
 					.filter( s => s.status === 'in-the-queue' );
 
@@ -657,6 +754,13 @@ import '../../css/admin/queue-admin.css';
 		// Refresh button.
 		el.refreshBtn.addEventListener( 'click', fetchQueue );
 
+		// Reset queue button.
+		el.resetQueueBtn.addEventListener( 'click', function () {
+			if ( window.confirm( i18n.confirmReset ) ) {
+				resetQueue();
+			}
+		} );
+
 		// Table delegation.
 		el.onStageTbody.addEventListener( 'click', handleTableClick );
 		el.queueTbody.addEventListener( 'click', handleTableClick );
@@ -728,6 +832,10 @@ import '../../css/admin/queue-admin.css';
 		bindEvents();
 		initSortable();
 		fetchQueue();
+
+		// Start the auto-refresh chain.
+		setTimeout( refreshPending, PENDING_REFRESH_MS );
+		setTimeout( refreshOnStage, PENDING_REFRESH_MS );
 	}
 
 	// Kick off when DOM is ready.
