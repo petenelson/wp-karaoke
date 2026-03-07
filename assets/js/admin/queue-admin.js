@@ -332,7 +332,7 @@ const WPKQAmin = () => {
 	}
 
 	/**
-	 * Silently fetch the queue and re-render only the New Sign-Ups table.
+	 * Silently fetch the queue and re-render only the On Stage section.
 	 * Used for the auto-refresh interval so other tables are not disturbed.
 	 *
 	 * @return {Promise<void>}
@@ -374,11 +374,30 @@ const WPKQAmin = () => {
 	 * Build the action buttons for a singer row.
 	 *
 	 * @param {number} globalIndex Index of singer in the full queue array.
-	 * @param {string} context     'queue' or 'pending'.
+	 * @param {string} context     'queue', 'pending', or 'on-stage'.
+	 * @param {number} pos         Position within the filtered list (queue context only).
+	 * @param {number} total       Total items in the filtered list (queue context only).
 	 * @return {string} HTML string.
 	 */
-	function buildActionButtons( globalIndex, context ) {
+	function buildActionButtons( globalIndex, context, pos = 0, total = 1 ) {
 		let html = '<div class="wpkq-actions">';
+
+		if ( 'queue' === context ) {
+			html += `<button
+				class="wpkq-btn wpkq-btn--move"
+				data-action="move-up"
+				data-index="${ globalIndex }"
+				aria-label="Move up"
+				${ 0 === pos ? 'disabled' : '' }
+			>↑</button>`;
+			html += `<button
+				class="wpkq-btn wpkq-btn--move"
+				data-action="move-down"
+				data-index="${ globalIndex }"
+				aria-label="Move down"
+				${ pos === total - 1 ? 'disabled' : '' }
+			>↓</button>`;
+		}
 
 		if ( 'pending' === context ) {
 			html += `<button
@@ -473,7 +492,7 @@ const WPKQAmin = () => {
 
 		el.queueEmpty.style.display = 'none';
 
-		el.queueTbody.innerHTML = singers.map( ( { singer, index } ) => `
+		el.queueTbody.innerHTML = singers.map( ( { singer, index }, pos ) => `
 			<tr class="wpkq-row" data-index="${ index }">
 				<td class="wpkq-col-drag wpkq-drag-handle" title="Drag to reorder">
 					<span class="wpkq-drag-icon" aria-hidden="true">⠿</span>
@@ -482,7 +501,7 @@ const WPKQAmin = () => {
 				<td class="wpkq-col-song" data-label="Song">${ escHtml( singer.song ) }</td>
 				<td class="wpkq-col-artist" data-label="Artist">${ escHtml( singer.artist ) }</td>
 				<td class="wpkq-col-time" data-label="Signed Up">${ formatTime( singer.signup_time ) }</td>
-				<td class="wpkq-col-actions">${ buildActionButtons( index, 'queue' ) }</td>
+				<td class="wpkq-col-actions">${ buildActionButtons( index, 'queue', pos, singers.length ) }</td>
 			</tr>
 		` ).join( '' );
 	}
@@ -578,14 +597,13 @@ const WPKQAmin = () => {
 
 			onEnd( evt ) {
 				isDragging = false;
-				const inQueueSingers = queue
-					.filter( s => s.status === 'in-the-queue' );
+				const inQueueSingers = queue.filter( ( s ) => s.status === 'in-the-queue' );
 
 				// Reorder only the in-the-queue singers.
 				const moved = inQueueSingers.splice( evt.oldIndex, 1 )[ 0 ];
 				inQueueSingers.splice( evt.newIndex, 0, moved );
 
-				reorderQueue( inQueueSingers.map( s => s.id ) );
+				reorderQueue( inQueueSingers.map( ( s ) => s.id ) );
 			},
 		} );
 	}
@@ -598,7 +616,6 @@ const WPKQAmin = () => {
 	 * @param {Event} e
 	 */
 	function handleTableClick( e ) {
-		return;
 		const btn = e.target.closest( '[data-action]' );
 		if ( ! btn ) {
 			return;
@@ -613,6 +630,20 @@ const WPKQAmin = () => {
 		}
 
 		switch ( action ) {
+			case 'move-up':
+			case 'move-down': {
+				const inQueueSingers = queue.filter( ( s ) => s.status === 'in-the-queue' );
+				const pos = inQueueSingers.findIndex( ( s ) => s.id === singer.id );
+				if ( 'move-up' === action && pos > 0 ) {
+					[ inQueueSingers[ pos - 1 ], inQueueSingers[ pos ] ] = [ inQueueSingers[ pos ], inQueueSingers[ pos - 1 ] ];
+					reorderQueue( inQueueSingers.map( ( s ) => s.id ) );
+				} else if ( 'move-down' === action && pos < inQueueSingers.length - 1 ) {
+					[ inQueueSingers[ pos ], inQueueSingers[ pos + 1 ] ] = [ inQueueSingers[ pos + 1 ], inQueueSingers[ pos ] ];
+					reorderQueue( inQueueSingers.map( ( s ) => s.id ) );
+				}
+				break;
+			}
+
 			case 'add-to-queue':
 				updateSinger( singer.id, { status: 'in-the-queue' } );
 				break;
