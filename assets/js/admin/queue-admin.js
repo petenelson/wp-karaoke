@@ -598,6 +598,7 @@ const WPKQAmin = () => {
 	 * @param {Event} e
 	 */
 	function handleTableClick( e ) {
+		return;
 		const btn = e.target.closest( '[data-action]' );
 		if ( ! btn ) {
 			return;
