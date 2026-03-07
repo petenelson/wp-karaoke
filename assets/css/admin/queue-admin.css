@@ -323,6 +323,8 @@
 .wpkq-drag-icon {
 	font-size: 1.2rem;
 	color: var( --wpkq-text-muted );
+	touch-action: none;
+	user-select: none;
 	line-height: 1;
 }
 
@@ -569,6 +571,11 @@
 		letter-spacing: 0.04em;
 		color: var( --wpkq-text-muted );
 		display: inline;
+	}
+
+	.wpkq-table-wrap {
+		overflow-x: visible;
+		-webkit-overflow-scrolling: auto;
 	}
 
 	.wpkq-col-drag {
