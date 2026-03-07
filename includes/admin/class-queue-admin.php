@@ -72,7 +72,7 @@ class Queue_Admin {
 			'wpkq-admin',
 			WPKQ_PLUGIN_URL . 'dist/css/admin.css',
 			array(),
-			WPKQ_VERSION
+			time()
 		);
 
 		// Enqueue admin JS.
@@ -80,7 +80,7 @@ class Queue_Admin {
 			'wpkq-admin',
 			WPKQ_PLUGIN_URL . 'dist/js/admin.js',
 			array( 'sortablejs' ),
-			WPKQ_VERSION,
+			time(),
 			true
 		);
 
