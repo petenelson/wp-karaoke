@@ -29,11 +29,11 @@ class Now_Playing_Block {
 	 * Register hooks.
 	 */
 	public function register() {
-		add_action( 'init', array( $this, 'register_block' ) );
-		add_filter( 'body_class', array( $this, 'add_body_class' ) );
-		add_action( 'admin_post_wpkq_verify_password', array( $this, 'handle_password_verification' ) );
-		add_action( 'admin_post_nopriv_wpkq_verify_password', array( $this, 'handle_password_verification' ) );
-		add_action( 'save_post', array( $this, 'sync_password_to_meta' ), 10, 2 );
+		add_action( 'init', [ $this, 'register_block' ] );
+		add_filter( 'body_class', [ $this, 'add_body_class' ] );
+		add_action( 'admin_post_wpkq_verify_password', [ $this, 'handle_password_verification' ] );
+		add_action( 'admin_post_nopriv_wpkq_verify_password', [ $this, 'handle_password_verification' ] );
+		add_action( 'save_post', [ $this, 'sync_password_to_meta' ], 10, 2 );
 	}
 
 	/**
@@ -95,12 +95,12 @@ class Now_Playing_Block {
 
 		// Look up the venue and retrieve its stored password.
 		$posts = get_posts(
-			array(
+			[
 				'name'           => $venue_slug,
 				'post_type'      => 'karaoke-venue',
 				'post_status'    => 'publish',
 				'posts_per_page' => 1,
-			)
+			]
 		);
 
 		if ( empty( $posts ) ) {

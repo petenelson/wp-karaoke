@@ -6,6 +6,8 @@
  * @package WPKQ
  */
 
+import './style.css';
+
 /**
  * Singer Signup Block module.
  */

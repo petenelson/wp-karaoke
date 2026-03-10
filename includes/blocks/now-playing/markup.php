@@ -37,7 +37,7 @@ $cookie_name = Now_Playing_Block::get_cookie_name( $venue_slug );
 $is_authorized = isset( $_COOKIE[ $cookie_name ] ) &&
 	hash_equals( md5( $password ), $_COOKIE[ $cookie_name ] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_md5
 
-$block_props = get_block_wrapper_attributes( array( 'class' => 'wpkq-monitor' ) );
+$block_props = get_block_wrapper_attributes( [ 'class' => 'wpkq-monitor' ] );
 
 if ( ! $is_authorized ) {
 	$has_error = isset( $_GET['wpkq_auth_error'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['wpkq_auth_error'] ) ); // phpcs:ignore WordPress.Security.NonceVerification

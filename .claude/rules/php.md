@@ -9,4 +9,5 @@ paths:
 * Use short array syntax `[]` instead of `array()`.
 * PHP root namespace: `WPKQ` (WordPress Karaoke Queue).
 * PHP lives in `includes/`, with sub-folders: `post-type/`, `taxonomy/`, `rest/`, `admin/`, `blocks/`.
-* Refere to [10up's PHP Engineering Best Practices](https://10up.github.io/Engineering-Best-Practices/php/) for any other PHP-related decisions.
+* When reading `$_POST`, `$_GET`, or `$_REQUEST` variables, always use `filter_var_array()` with appropriate filter constants and validation rules.
+* Refer to [10up's PHP Engineering Best Practices](https://10up.github.io/Engineering-Best-Practices/php/) for any other PHP-related decisions.

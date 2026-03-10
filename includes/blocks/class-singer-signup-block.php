@@ -22,7 +22,7 @@ class Singer_Signup_Block {
 	 * Register hooks.
 	 */
 	public function register() {
-		add_action( 'init', array( $this, 'register_block' ) );
+		add_action( 'init', [ $this, 'register_block' ] );
 	}
 
 	/**

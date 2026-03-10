@@ -53,6 +53,24 @@
 	color: #fff;
 }
 
+.wpkq-btn--signups-open {
+	background: #16a34a;
+	color: #fff;
+}
+
+.wpkq-btn--signups-open:hover {
+	background: #15803d;
+}
+
+.wpkq-btn--signups-closed {
+	background: #64748b;
+	color: #fff;
+}
+
+.wpkq-btn--signups-closed:hover {
+	background: #475569;
+}
+
 .wpkq-title {
 	font-size: 1.6rem;
 	font-weight: 700;

@@ -29,8 +29,8 @@ class Queue_Admin {
 	 * Register hooks.
 	 */
 	public function register() {
-		add_action( 'admin_menu', array( $this, 'register_admin_page' ) );
-		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'admin_menu', [ $this, 'register_admin_page' ] );
+		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 	}
 
 	/**
@@ -38,12 +38,12 @@ class Queue_Admin {
 	 */
 	public function register_admin_page() {
 		add_submenu_page(
-			null, // No parent — hidden from menu, accessible via URL.
+			'none', // No parent — hidden from menu, accessible via URL.
 			__( 'Manage Queue', 'wp-karaoke' ),
 			__( 'Manage Queue', 'wp-karaoke' ),
 			'manage_options',
 			self::PAGE_SLUG,
-			array( $this, 'render_page' )
+			[ $this, 'render_page' ]
 		);
 	}
 
@@ -62,7 +62,7 @@ class Queue_Admin {
 		wp_enqueue_script(
 			'sortablejs',
 			'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js',
-			array(),
+			[],
 			'1.15.2',
 			true
 		);
@@ -71,7 +71,7 @@ class Queue_Admin {
 		wp_enqueue_style(
 			'wpkq-admin',
 			WPKQ_PLUGIN_URL . 'dist/css/admin.css',
-			array(),
+			[],
 			time()
 		);
 
@@ -79,7 +79,7 @@ class Queue_Admin {
 		wp_enqueue_script(
 			'wpkq-admin',
 			WPKQ_PLUGIN_URL . 'dist/js/admin.js',
-			array( 'sortablejs' ),
+			[ 'sortablejs' ],
 			time(),
 			true
 		);
@@ -90,12 +90,12 @@ class Queue_Admin {
 		wp_localize_script(
 			'wpkq-admin',
 			'wpkqAdmin',
-			array(
+			[
 				'apiBase'        => esc_url_raw( rest_url( 'wpkq/v1/queue' ) ),
 				'actionsApiBase' => esc_url_raw( rest_url( 'wpkq/v1/actions' ) ),
 				'nonce'     => wp_create_nonce( 'wp_rest' ),
 				'venueSlug' => $slug,
-				'i18n'      => array(
+				'i18n'      => [
 					'confirmOnStage'  => __( 'Move this singer on stage?', 'wp-karaoke' ),
 					'confirmFinished' => __( 'Mark this singer as finished? This cannot be undone.', 'wp-karaoke' ),
 					'confirmDelete'   => __( 'Remove this singer from the queue? This cannot be undone.', 'wp-karaoke' ),
@@ -104,8 +104,8 @@ class Queue_Admin {
 					'loading'         => __( 'Loading...', 'wp-karaoke' ),
 					'saveError'       => __( 'Error saving queue. Please try again.', 'wp-karaoke' ),
 					'loadError'       => __( 'Error loading queue. Please refresh the page.', 'wp-karaoke' ),
-				),
-			)
+				],
+			]
 		);
 	}
 
@@ -125,19 +125,20 @@ class Queue_Admin {
 
 		// Validate venue slug.
 		$posts = get_posts(
-			array(
+			[
 				'name'           => $slug,
 				'post_type'      => 'karaoke-venue',
 				'post_status'    => 'publish',
 				'posts_per_page' => 1,
-			)
+			]
 		);
 
 		if ( empty( $posts ) ) {
 			wp_die( esc_html__( 'Invalid venue.', 'wp-karaoke' ) );
 		}
 
-		$venue = $posts[0];
+		$venue        = $posts[0];
+		$signups_open = (bool) get_post_meta( $venue->ID, \WPKQ\Post_Type\Venue_Post_Type::SIGNUPS_META_KEY, true );
 		?>
 		<div class="wpkq-admin-wrap wrap" id="wpkq-app">
 			<div class="wpkq-header">
@@ -279,6 +280,14 @@ class Queue_Admin {
 				<!-- Reset Queue -->
 
 			<div class="wpkq-footer">
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0;">
+					<?php wp_nonce_field( 'wpkq_toggle_signups' ); ?>
+					<input type="hidden" name="action" value="wpkq_toggle_signups">
+					<input type="hidden" name="post_id" value="<?php echo esc_attr( $venue->ID ); ?>">
+					<button type="submit" class="wpkq-btn <?php echo $signups_open ? 'wpkq-btn--signups-open' : 'wpkq-btn--signups-closed'; ?>">
+						<?php echo $signups_open ? esc_html__( 'Signups Open', 'wp-karaoke' ) : esc_html__( 'Signups Closed', 'wp-karaoke' ); ?>
+					</button>
+				</form>
 				<button class="wpkq-btn wpkq-btn--danger" id="wpkq-reset-queue-btn">
 					<?php esc_html_e( 'Reset Queue', 'wp-karaoke' ); ?>
 				</button>
