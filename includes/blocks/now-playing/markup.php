@@ -15,8 +15,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$venue_id = isset( $attributes['venueId'] ) ? absint( $attributes['venueId'] ) : 0;
-$password = isset( $attributes['password'] ) ? $attributes['password'] : '';
+$venue_id           = isset( $attributes['venueId'] ) ? absint( $attributes['venueId'] ) : 0;
+$password           = isset( $attributes['password'] ) ? $attributes['password'] : '';
+$ticker_queue_limit = isset( $attributes['tickerQueueLimit'] ) ? absint( $attributes['tickerQueueLimit'] ) : 6;
 
 // Block is not renderable without a venue and password configured.
 if ( ! $venue_id || '' === $password ) {
@@ -94,6 +95,7 @@ $rest_url = esc_url_raw( rest_url( 'wpkq/v1/queue?slug=' . rawurlencode( $venue_
 	data-venue-slug="<?php echo esc_attr( $venue_slug ); ?>"
 	data-rest-url="<?php echo esc_attr( $rest_url ); ?>"
 	data-advance-url="<?php echo esc_attr( esc_url_raw( rest_url( 'wpkq/v1/queue/advance' ) ) ); ?>"
+	data-ticker-queue-limit="<?php echo esc_attr( $ticker_queue_limit ); ?>"
 >
 	<form class="wpkq-monitor__url-bar" id="wpkq-url-form" novalidate>
 		<input

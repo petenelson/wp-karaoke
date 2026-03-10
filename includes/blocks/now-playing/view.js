@@ -94,7 +94,7 @@ const NowPlayingBlock = {
 	},
 
 	/** Maximum number of in-the-queue singers shown in the ticker (excluding on-stage). */
-	TICKER_QUEUE_LIMIT: 4,
+	TICKER_QUEUE_LIMIT: 6,
 
 	/**
 	 * Build a placeholder ticker item for an empty queue.
@@ -248,6 +248,11 @@ const NowPlayingBlock = {
 		const restUrl     = wrapper.dataset.restUrl;
 		const advanceUrl  = wrapper.dataset.advanceUrl;
 		const venueSlug   = wrapper.dataset.venueSlug;
+		const limitAttr   = parseInt( wrapper.dataset.tickerQueueLimit, 10 );
+
+		if ( ! isNaN( limitAttr ) && limitAttr > 0 ) {
+			NowPlayingBlock.TICKER_QUEUE_LIMIT = limitAttr;
+		}
 		const tickerInner = wrapper.querySelector( '.wpkq-monitor__ticker-inner' );
 		const urlForm     = wrapper.querySelector( '#wpkq-url-form' );
 		const urlInput    = wrapper.querySelector( '#wpkq-url-input' );

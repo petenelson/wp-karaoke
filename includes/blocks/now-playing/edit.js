@@ -6,7 +6,7 @@
 
 import { __ } from '@wordpress/i18n';
 import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
-import { PanelBody, SelectControl, TextControl, Spinner } from '@wordpress/components';
+import { PanelBody, RangeControl, SelectControl, TextControl, Spinner } from '@wordpress/components';
 import { useSelect } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 
@@ -19,7 +19,7 @@ import { store as coreStore } from '@wordpress/core-data';
  * @return {Element} Editor UI.
  */
 export default function Edit( { attributes, setAttributes } ) {
-	const { venueId, password } = attributes;
+	const { venueId, password, tickerQueueLimit } = attributes;
 
 	const blockProps = useBlockProps( {
 		className: 'wpkq-monitor-editor-preview',
@@ -70,6 +70,17 @@ export default function Edit( { attributes, setAttributes } ) {
 						type="text"
 						help={ __(
 							'Password required to view the monitor on the frontend.',
+							'wp-karaoke'
+						) }
+					/>
+					<RangeControl
+						label={ __( 'Queue names shown in ticker', 'wp-karaoke' ) }
+						value={ tickerQueueLimit }
+						onChange={ ( value ) => setAttributes( { tickerQueueLimit: value } ) }
+						min={ 1 }
+						max={ 20 }
+						help={ __(
+							'Number of upcoming singers shown after the on-stage performer.',
 							'wp-karaoke'
 						) }
 					/>

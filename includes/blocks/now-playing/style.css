@@ -232,11 +232,11 @@
 	display: inline-flex;
 	align-items: center;
 	padding: 8px 40px;
-	margin: 0 8px;
+	margin: 0 40px;
 	background: #333;
 	color: #fff;
 	border-radius: 4px;
-	font-size: 18px;
+	font-size: 1.4em;
 	font-family: sans-serif;
 	user-select: none;
 }

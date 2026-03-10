@@ -19,6 +19,10 @@
 		"password": {
 			"type": "string",
 			"default": ""
+		},
+		"tickerQueueLimit": {
+			"type": "integer",
+			"default": 6
 		}
 	},
 	"editorScript": "file:../../../dist/js/block-now-playing-editor.js",
