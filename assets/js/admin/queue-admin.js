@@ -894,8 +894,10 @@ const WPKQAmin = () => {
 				break;
 
 			case 'on-stage':
-				updateSinger( singer.id, { status: 'on-stage' } );
-				postAction( 'set-on-stage', singer.id );
+				if ( window.confirm( i18n.confirmOnStage ) ) {
+					updateSinger( singer.id, { status: 'on-stage' } );
+					postAction( 'set-on-stage', singer.id );
+				}
 				break;
 
 			case 'edit':

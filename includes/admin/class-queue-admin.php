@@ -96,6 +96,7 @@ class Queue_Admin {
 				'nonce'     => wp_create_nonce( 'wp_rest' ),
 				'venueSlug' => $slug,
 				'i18n'      => array(
+					'confirmOnStage'  => __( 'Move this singer on stage?', 'wp-karaoke' ),
 					'confirmFinished' => __( 'Mark this singer as finished? This cannot be undone.', 'wp-karaoke' ),
 					'confirmDelete'   => __( 'Remove this singer from the queue? This cannot be undone.', 'wp-karaoke' ),
 					'confirmReset'    => __( 'Reset the entire queue? This will remove all singers and cannot be undone.', 'wp-karaoke' ),
