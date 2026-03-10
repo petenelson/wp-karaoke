@@ -78,11 +78,18 @@ const NowPlayingBlock = {
 	/**
 	 * Load a video into the player by ID.
 	 *
+	 * Hides the welcome overlay on first load.
+	 *
 	 * @param {string} videoId YouTube video ID.
 	 */
 	loadVideo: ( videoId ) => {
 		if ( NowPlayingBlock.player && typeof NowPlayingBlock.player.loadVideoById === 'function' ) {
 			NowPlayingBlock.player.loadVideoById( videoId );
+
+			const welcome = document.getElementById( 'wpkq-welcome' );
+			if ( welcome ) {
+				welcome.hidden = true;
+			}
 		}
 	},
 

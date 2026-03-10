@@ -110,6 +110,17 @@ $rest_url = esc_url_raw( rest_url( 'wpkq/v1/queue?slug=' . rawurlencode( $venue_
 	</form>
 
 	<div class="wpkq-monitor__player-wrap">
+		<div class="wpkq-monitor__welcome" id="wpkq-welcome">
+			<p class="wpkq-monitor__welcome-text">
+				<?php
+				printf(
+					/* translators: %s: venue name */
+					esc_html__( 'Welcome to %s karaoke night!', 'wp-karaoke' ),
+					esc_html( $venue->post_title )
+				);
+				?>
+			</p>
+		</div>
 		<div id="wpkq-yt-player"></div>
 	</div>
 

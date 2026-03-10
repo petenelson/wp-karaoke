@@ -1,5 +1,8 @@
 # wp-karaoke — Claude Instructions
 
+## Project Overview
+This is a WordPress plugin project (wp-karaoke). Key technologies: PHP, JavaScript (vanilla), CSS. Block-based architecture using WordPress block editor. Do not delete documentation files (requirements.md, CONTEXT.md) without explicit permission. Do not automatically run build commands.
+
 ## Project Architecture
 
 - **Post type:** `karaoke-venue` — stores the singer queue in a single post meta field as a JSON array.

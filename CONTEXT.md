@@ -25,14 +25,16 @@ Each singer entry contains:
 ### Admin Page Layout
 The Manage Queue page has four sections rendered by JavaScript after fetching the queue:
 
-1. **On Stage** (top, amber highlight) — shows the single singer currently performing. Displayed only when a singer has `on-stage` status. No Edit button; has Finished and Delete buttons.
-2. **In The Queue** — singers with `in-the-queue` status. Has a Refresh button. Singers can be reordered via drag-and-drop (SortableJS, touch-friendly). Buttons: Edit, On Stage, Finished, Delete.
-3. **New Sign-Ups** — singers with `kj-received` status (submitted via the public signup form or added directly by the KJ). Buttons: Add to Queue, Edit, Delete.
+1. **On Stage** (top, amber highlight) — shows the single singer currently performing. Displayed only when a singer has `on-stage` status. No Edit button; has Finished and Delete buttons. Auto-refreshes on the same interval as New Sign-Ups.
+2. **In The Queue** — singers with `in-the-queue` status. Has a Refresh button. Singers can be reordered via drag-and-drop (SortableJS, touch-friendly) or ↑/↓ move buttons. Buttons: Edit, On Stage, Finished, Delete.
+3. **New Sign-Ups** — singers with `kj-received` status (submitted via the public signup form or added directly by the KJ). Auto-refreshes every `refreshInterval` ms (localized via `wpkqAdmin.refreshInterval`, default 1000ms); refresh is suppressed while a drag is in progress. Buttons: Add to Queue, Edit, Delete.
 4. **Finished** — singers with `finished` status, retained for the session (read-only).
 
+A **Reset Queue** button clears all singers from the queue (requires confirmation). It calls `DELETE /wpkq/v1/queue`.
+
 ### Modals
-- **Add Singer modal**: Name (required), Song, Artist, YouTube URL. A random 10-character ID is generated at submission time.
-- **Edit Singer modal**: Same fields. Available for singers in In The Queue and New Sign-Ups; not available for On Stage.
+- **Add Singer modal**: Name (required), Song, Artist, YouTube URL. A random 10-character ID is generated at submission time. Status is set to `in-the-queue`.
+- **Edit Singer modal**: Same fields (including YouTube URL). Available for singers in In The Queue and New Sign-Ups; not available for On Stage.
 
 ### REST API Interactions (Admin)
 All mutations use individual REST endpoints rather than a bulk queue save:
@@ -45,6 +47,7 @@ All mutations use individual REST endpoints rather than a bulk queue save:
 | Change status | PUT | `/wpkq/v1/queue/singer/{id}` |
 | Delete singer | DELETE | `/wpkq/v1/queue/singer/{id}` |
 | Reorder queue | POST | `/wpkq/v1/queue/reorder` |
+| Reset queue | DELETE | `/wpkq/v1/queue` |
 
 All admin endpoints require `manage_options` and a WordPress REST nonce (`X-WP-Nonce` header).
 
@@ -65,15 +68,25 @@ A Gutenberg block displayed on a laptop connected to a TV, showing the current s
 - On success, a venue-specific cookie (`wpkq_auth_{slug}` = `md5(password)`) is set for 6 hours.
 
 ### Authorized Monitor View
-- Full-width YouTube IFrame Player API embed. The KJ can search and play videos directly.
-- A URL input bar lets the KJ paste a YouTube link to load it in the embed.
+- Full-width YouTube IFrame Player API embed. The KJ can paste a YouTube URL into a URL bar to load a video in the embed.
+- A welcome overlay (`#wpkq-welcome`) is shown until the first video loads; it hides automatically when `loadVideoById()` is called.
+- The welcome message reads: *"Welcome to {venue name} karaoke night!"*
+- An injected `<style>` tag resets `html { margin-top: 0 !important; }` to ensure full-viewport height even when the admin bar is present.
 - At the bottom: a horizontal ticker showing the current singer and upcoming queue.
+
+### YouTube URL Parsing
+The `parseVideoId()` utility accepts:
+- `https://www.youtube.com/watch?v=ID`
+- `https://youtu.be/ID`
+- `https://www.youtube.com/embed/ID`
+- `https://www.youtube.com/shorts/ID`
+- A bare 11-character video ID
 
 ### Ticker Behaviour
 - Fetches queue from `GET /wpkq/v1/queue?slug=` (public endpoint). Returns singers with `in-the-queue` and `on-stage` status, with `on-stage` first.
 - The singer with `on-stage` status is displayed with a cyan badge and "On Stage:" prefix.
 - Scroll is a one-shot CSS transition at 100px/s. When the last item scrolls off the left edge, the queue is refreshed and the ticker restarts.
-- All singer items with an ID are clickable.
+- Only singers in `in-the-queue` status with a `youtube_url` are clickable (stored as `data-singer-id` and `data-youtube-url` on the span). On-stage items are not clickable.
 
 ### Ticker Click → Advance Singer
 When the KJ clicks a singer's name in the ticker:
@@ -93,15 +106,20 @@ A public-facing Gutenberg block that lets audience members sign up to sing.
 - Settings panel: venue picker (published `karaoke-venue` posts). No password required.
 
 ### Frontend Form
-Fields: **Your Name** (required), **Song Title**, **Artist**.
+Fields: **Your Name** (required), **Song Title** (required), **Artist** (required). All three fields are client-side validated before submission.
 
 - Submission is handled client-side via `fetch` — no page reload.
-- On success: the form is replaced with a confirmation message (*"You're signed up! Watch for your name on screen."*) and a "Sign Up Another Singer" button that resets the form.
+- On success: the form is replaced with a confirmation message (*"You're signed up! Watch for your name on screen."*) and a "Sign Up Again" button that resets the form.
 - On error: an inline error message is shown; the form stays filled in.
+
+### Cookie-Based Name Autofill
+- On successful submission, the singer's name is saved to a cookie (`wpkq_singer_name`, 6-hour TTL, `SameSite=Lax`).
+- On page load and after clicking "Sign Up Again", the Name field is pre-filled from the cookie if present.
+- Smart focus: if the cookie has a saved name, focus moves to the Song field; otherwise the Name field is focused.
 
 ### REST API Interaction
 Submissions POST to `POST /wpkq/v1/queue/signup` (no auth required):
-- A singer ID is generated server-side.
+- A singer ID is generated server-side (`wp_generate_password(10, false, false)`).
 - Status is always set to `kj-received`.
 - Returns `{ "success": true }` only — queue data is not exposed publicly.
 - The KJ sees the submission in the New Sign-Ups section and promotes it with "Add to Queue".
@@ -114,7 +132,8 @@ All routes use the namespace `wpkq/v1`. Routes that operate on a venue require a
 
 | Method | Route | Auth | Purpose |
 |--------|-------|------|---------|
-| GET | `/wpkq/v1/queue` | Public | Fetch queue. Logged-in: all singers. Public: `in-the-queue` + `on-stage` only, with `on-stage` first. |
+| GET | `/wpkq/v1/queue` | Public | Fetch queue. Logged-in: all singers + all fields. Public: `in-the-queue` + `on-stage` only (on-stage first), limited to `id`, `singer_name`, `youtube_url`, `status`. |
+| DELETE | `/wpkq/v1/queue` | `manage_options` | Reset the entire queue to empty. |
 | POST | `/wpkq/v1/queue/singer` | `manage_options` | KJ adds a singer with full data (name, song, artist, YouTube URL, status, ID). |
 | PUT | `/wpkq/v1/queue/singer/{id}` | `manage_options` | Partial update of any singer field. Setting `status: on-stage` auto-reverts the prior on-stage singer to `in-the-queue`. |
 | DELETE | `/wpkq/v1/queue/singer/{id}` | `manage_options` | Remove a singer from the queue entirely. |

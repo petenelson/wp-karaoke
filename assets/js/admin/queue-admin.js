@@ -17,6 +17,9 @@ const WPKQAmin = () => {
 	/** @type {boolean} True while a drag is in progress — suppresses auto-refresh */
 	let isDragging = false;
 
+	/** @type {Set<string>} Singer IDs currently being checked for YouTube playability */
+	const checkingIds = new Set();
+
 	/** Milliseconds between New Sign-Ups auto-refreshes */
 	const PENDING_REFRESH_MS = parseInt( wpkqAdmin.refreshInterval, 10 ) || 1000;
 
@@ -358,7 +361,232 @@ const WPKQAmin = () => {
 		setTimeout( refreshOnStage, PENDING_REFRESH_MS );
 	}
 
+	// ─── YouTube Playability Check ────────────────────────────────────────────
+
+	/** @type {YT.Player|null} Reusable hidden YouTube player for URL validation */
+	let ytCheckPlayer = null;
+
+	/** @type {boolean} True once the YouTube IFrame API has fully loaded */
+	let ytApiReady = false;
+
+	/** @type {Function|null} Resolve callback for the current in-flight check */
+	let ytCheckResolve = null;
+
+	/** @type {number|null} Timeout ID for the current in-flight check */
+	let ytCheckTimeout = null;
+
+	/**
+	 * Extract an 11-character YouTube video ID from a URL or bare ID.
+	 *
+	 * @param {string} url
+	 * @return {string|null}
+	 */
+	function parseVideoId( url ) {
+		if ( ! url ) {
+			return null;
+		}
+		const patterns = [
+			/[?&]v=([A-Za-z0-9_-]{11})/,
+			/youtu\.be\/([A-Za-z0-9_-]{11})/,
+			/\/embed\/([A-Za-z0-9_-]{11})/,
+			/\/shorts\/([A-Za-z0-9_-]{11})/,
+		];
+		for ( const pattern of patterns ) {
+			const match = url.match( pattern );
+			if ( match ) {
+				return match[ 1 ];
+			}
+		}
+		if ( /^[A-Za-z0-9_-]{11}$/.test( url ) ) {
+			return url;
+		}
+		return null;
+	}
+
+	/**
+	 * Called by the YouTube IFrame API once it has loaded.
+	 * Creates the hidden player instance used for URL validation.
+	 */
+	function handleYouTubeApiReady() {
+		ytApiReady = true;
+
+		const wrap          = document.createElement( 'div' );
+		wrap.style.cssText  = 'position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;';
+		const playerEl      = document.createElement( 'div' );
+		playerEl.id         = 'wpkq-yt-check-player';
+		wrap.appendChild( playerEl );
+		document.body.appendChild( wrap );
+
+		ytCheckPlayer = new window.YT.Player( 'wpkq-yt-check-player', {
+			width:      1,
+			height:     1,
+			playerVars: { autoplay: 0, controls: 0 },
+			events: {
+				onStateChange: ( e ) => {
+					if ( e.data === window.YT.PlayerState.CUED ) {
+						resolveYtCheck( true );
+					}
+				},
+				onError: () => resolveYtCheck( false ),
+			},
+		} );
+	}
+
+	/**
+	 * Load the YouTube IFrame API script (idempotent).
+	 */
+	function loadYouTubeApi() {
+		if ( window.YT && window.YT.Player ) {
+			handleYouTubeApiReady();
+			return;
+		}
+		if ( document.getElementById( 'wpkq-yt-api' ) ) {
+			return;
+		}
+		window.onYouTubeIframeAPIReady = handleYouTubeApiReady;
+		const script  = document.createElement( 'script' );
+		script.id     = 'wpkq-yt-api';
+		script.src    = 'https://www.youtube.com/iframe_api';
+		document.head.appendChild( script );
+	}
+
+	/**
+	 * Settle the current in-flight check and clear its timeout.
+	 *
+	 * @param {boolean} playable
+	 */
+	function resolveYtCheck( playable ) {
+		clearTimeout( ytCheckTimeout );
+		ytCheckTimeout = null;
+		if ( ytCheckResolve ) {
+			ytCheckResolve( playable );
+			ytCheckResolve = null;
+		}
+	}
+
+	/**
+	 * Cue a video in the hidden player and wait for a CUED or error event.
+	 * Cancels any prior in-flight check before starting a new one.
+	 *
+	 * @param {string} videoId
+	 * @return {Promise<boolean|null>} true = playable, false = not playable, null = timed out.
+	 */
+	function checkVideoPlayable( videoId ) {
+		return new Promise( ( resolve ) => {
+			if ( ! ytApiReady || ! ytCheckPlayer || ! ytCheckPlayer.cueVideoById ) {
+				resolve( null );
+				return;
+			}
+
+			// Cancel any prior in-flight check.
+			if ( ytCheckResolve ) {
+				clearTimeout( ytCheckTimeout );
+				ytCheckResolve( null );
+			}
+
+			ytCheckResolve = resolve;
+			ytCheckTimeout = setTimeout( () => {
+				ytCheckResolve = null;
+				resolve( null );
+			}, 10000 );
+
+			ytCheckPlayer.cueVideoById( videoId );
+		} );
+	}
+
+	/**
+	 * Check whether a singer's YouTube URL is playable and persist the result.
+	 * Marks the singer as checking (spinner dot) while the check runs.
+	 *
+	 * @param {string} singerId
+	 * @param {string} youtubeUrl
+	 * @return {Promise<void>}
+	 */
+	async function checkYouTubePlayability( singerId, youtubeUrl ) {
+		const videoId = parseVideoId( youtubeUrl );
+		let playable;
+
+		if ( ! videoId ) {
+			playable = false;
+		} else {
+			playable = await checkVideoPlayable( videoId );
+		}
+
+		checkingIds.delete( singerId );
+
+		// Verify the singer still has the same URL (may have changed during the check).
+		const singer = queue.find( ( s ) => s.id === singerId );
+		if ( null === playable || ! singer || singer.youtube_url !== youtubeUrl ) {
+			renderAll();
+			return;
+		}
+
+		try {
+			const data = await apiRequest( 'PUT', `${ singerApiBase }/${ singerId }`, {
+				slug:             venueSlug,
+				youtube_playable: playable,
+			} );
+			queue = data.queue || queue;
+		} catch ( err ) {
+			console.error( 'WPKQ: Failed to save youtube_playable.', err );
+		}
+
+		renderAll();
+	}
+
 	// ─── Rendering ────────────────────────────────────────────────────────────
+
+	/**
+	 * Render a singer's name with a YouTube status dot when a URL is present.
+	 *
+	 * Dot states:
+	 *  - checking (gray pulse): singer is in checkingIds
+	 *  - green: youtube_playable === true
+	 *  - red:   youtube_playable === false
+	 *  - none:  no URL, or URL not yet checked
+	 *
+	 * @param {Object} singer Singer record.
+	 * @return {string} HTML string.
+	 */
+	function renderNameWithYtDot( singer ) {
+		const name = escHtml( singer.singer_name );
+
+		if ( ! singer.youtube_url ) {
+			return name;
+		}
+
+		if ( checkingIds.has( singer.id ) ) {
+			return `${ name } <span class="wpkq-yt-dot wpkq-yt-dot--checking" title="Checking video&hellip;" aria-hidden="true"></span>`;
+		}
+
+		if ( true === singer.youtube_playable ) {
+			return `${ name } <span class="wpkq-yt-dot wpkq-yt-dot--ok" title="Video available" aria-hidden="true"></span>`;
+		}
+
+		if ( false === singer.youtube_playable ) {
+			return `${ name } <span class="wpkq-yt-dot wpkq-yt-dot--err" title="Video unavailable" aria-hidden="true"></span>`;
+		}
+
+		return name;
+	}
+
+	/**
+	 * Render a singer's song title as a YouTube search link.
+	 * Opens a pre-populated search for "artist song" in a new tab.
+	 *
+	 * @param {Object} singer Singer record.
+	 * @return {string} HTML string.
+	 */
+	function renderSongLink( singer ) {
+		if ( ! singer.song ) {
+			return '—';
+		}
+
+		const query = [ 'karaoke', singer.artist, singer.song ].filter( Boolean ).join( ' ' );
+		const url   = 'https://www.youtube.com/results?search_query=' + encodeURIComponent( query );
+
+		return `<a href="${ escHtml( url ) }" target="_blank" rel="noopener noreferrer" class="wpkq-song-link">${ escHtml( singer.song ) }</a>`;
+	}
 
 	/**
 	 * Render both tables.
@@ -465,8 +693,8 @@ const WPKQAmin = () => {
 		const { singer, index } = onStage;
 		el.onStageTbody.innerHTML = `
 			<tr class="wpkq-row wpkq-row--on-stage" data-index="${ index }">
-				<td class="wpkq-col-name" data-label="Name">${ escHtml( singer.singer_name ) }</td>
-				<td class="wpkq-col-song" data-label="Song">${ escHtml( singer.song ) }</td>
+				<td class="wpkq-col-name" data-label="Name">${ renderNameWithYtDot( singer ) }</td>
+				<td class="wpkq-col-song" data-label="Song">${ renderSongLink( singer ) }</td>
 				<td class="wpkq-col-artist" data-label="Artist">${ escHtml( singer.artist ) }</td>
 				<td class="wpkq-col-time" data-label="Signed Up">${ formatTime( singer.signup_time ) }</td>
 				<td class="wpkq-col-actions">${ buildActionButtons( index, 'on-stage' ) }</td>
@@ -497,8 +725,8 @@ const WPKQAmin = () => {
 				<td class="wpkq-col-drag wpkq-drag-handle" title="Drag to reorder">
 					<span class="wpkq-drag-icon" aria-hidden="true">⠿</span>
 				</td>
-				<td class="wpkq-col-name" data-label="Name">${ escHtml( singer.singer_name ) }</td>
-				<td class="wpkq-col-song" data-label="Song">${ escHtml( singer.song ) }</td>
+				<td class="wpkq-col-name" data-label="Name">${ renderNameWithYtDot( singer ) }</td>
+				<td class="wpkq-col-song" data-label="Song">${ renderSongLink( singer ) }</td>
 				<td class="wpkq-col-artist" data-label="Artist">${ escHtml( singer.artist ) }</td>
 				<td class="wpkq-col-time" data-label="Signed Up">${ formatTime( singer.signup_time ) }</td>
 				<td class="wpkq-col-actions">${ buildActionButtons( index, 'queue', pos, singers.length ) }</td>
@@ -526,8 +754,8 @@ const WPKQAmin = () => {
 
 		el.pendingTbody.innerHTML = singers.map( ( { singer, index } ) => `
 			<tr class="wpkq-row" data-index="${ index }">
-				<td class="wpkq-col-name" data-label="Name">${ escHtml( singer.singer_name ) }</td>
-				<td class="wpkq-col-song" data-label="Song">${ escHtml( singer.song ) }</td>
+				<td class="wpkq-col-name" data-label="Name">${ renderNameWithYtDot( singer ) }</td>
+				<td class="wpkq-col-song" data-label="Song">${ renderSongLink( singer ) }</td>
 				<td class="wpkq-col-artist" data-label="Artist">${ escHtml( singer.artist ) }</td>
 				<td class="wpkq-col-time" data-label="Signed Up">${ formatTime( singer.signup_time ) }</td>
 				<td class="wpkq-col-actions">${ buildActionButtons( index, 'pending' ) }</td>
@@ -543,8 +771,6 @@ const WPKQAmin = () => {
 			.map( ( s, i ) => ( { singer: s, index: i } ) )
 			.filter( ( { singer } ) => singer.status === 'finished' );
 
-		console.log(singers);
-
 		el.finishedCount.textContent = singers.length;
 
 		if ( 0 === singers.length ) {
@@ -557,8 +783,8 @@ const WPKQAmin = () => {
 
 		el.finishedTbody.innerHTML = singers.map( ( { singer, index } ) => `
 			<tr class="wpkq-row" data-index="${ index }">
-				<td class="wpkq-col-name" data-label="Name">${ escHtml( singer.singer_name ) }</td>
-				<td class="wpkq-col-song" data-label="Song">${ escHtml( singer.song ) }</td>
+				<td class="wpkq-col-name" data-label="Name">${ renderNameWithYtDot( singer ) }</td>
+				<td class="wpkq-col-song" data-label="Song">${ renderSongLink( singer ) }</td>
 				<td class="wpkq-col-artist" data-label="Artist">${ escHtml( singer.artist ) }</td>
 				<td class="wpkq-col-time" data-label="Signed Up">${ formatTime( singer.signup_time ) }</td>
 				<td class="wpkq-col-actions"></td>
@@ -698,8 +924,10 @@ const WPKQAmin = () => {
 
 	/**
 	 * Save the new singer from the Add Singer modal.
+	 *
+	 * @return {Promise<void>}
 	 */
-	function saveAddModal() {
+	async function saveAddModal() {
 		const name = el.addName.value.trim().substring( 0, 50 );
 
 		if ( ! name ) {
@@ -707,19 +935,27 @@ const WPKQAmin = () => {
 			return;
 		}
 
-		const newSinger = {
-			id:             generateId(),
-			singer_name:    name,
-			song:           el.addSong.value.trim().substring( 0, 50 ),
-			artist:         el.addArtist.value.trim().substring( 0, 50 ),
-			youtube_url:    el.addYoutubeUrl.value.trim(),
-			signup_time:    Math.floor( Date.now() / 1000 ),
-			completed_time: 0,
-			status:         'in-the-queue',
+		const youtubeUrl = el.addYoutubeUrl.value.trim();
+		const newSinger  = {
+			id:               generateId(),
+			singer_name:      name,
+			song:             el.addSong.value.trim().substring( 0, 50 ),
+			artist:           el.addArtist.value.trim().substring( 0, 50 ),
+			youtube_url:      youtubeUrl,
+			youtube_playable: null,
+			signup_time:      Math.floor( Date.now() / 1000 ),
+			completed_time:   0,
+			status:           'in-the-queue',
 		};
 
 		closeAddModal();
-		addSinger( newSinger );
+		await addSinger( newSinger );
+
+		if ( youtubeUrl ) {
+			checkingIds.add( newSinger.id );
+			renderAll();
+			checkYouTubePlayability( newSinger.id, youtubeUrl );
+		}
 	}
 
 	// ─── Edit Modal ───────────────────────────────────────────────────────────
@@ -758,8 +994,10 @@ const WPKQAmin = () => {
 
 	/**
 	 * Save edits from the modal.
+	 *
+	 * @return {Promise<void>}
 	 */
-	function saveEditModal() {
+	async function saveEditModal() {
 		const index = parseInt( el.editIndex.value, 10 );
 
 		if ( isNaN( index ) || ! queue[ index ] ) {
@@ -767,16 +1005,31 @@ const WPKQAmin = () => {
 			return;
 		}
 
-		const singer = queue[ index ];
+		const singer     = queue[ index ];
+		const newUrl     = el.editYoutubeUrl.value.trim();
+		const urlChanged = newUrl !== ( singer.youtube_url || '' );
+
 		const fields = {
 			singer_name: el.editName.value.substring( 0, 50 ),
 			song:        el.editSong.value.substring( 0, 50 ),
 			artist:      el.editArtist.value.substring( 0, 50 ),
-			youtube_url: el.editYoutubeUrl.value.trim(),
+			youtube_url: newUrl,
 		};
 
+		// Reset playability when the URL changes so the dot clears until re-checked.
+		if ( urlChanged ) {
+			fields.youtube_playable = null;
+		}
+
+		const singerId = singer.id;
 		closeEditModal();
-		updateSinger( singer.id, fields );
+		await updateSinger( singerId, fields );
+
+		if ( urlChanged && newUrl ) {
+			checkingIds.add( singerId );
+			renderAll();
+			checkYouTubePlayability( singerId, newUrl );
+		}
 	}
 
 	// ─── Init ─────────────────────────────────────────────────────────────────
@@ -866,6 +1119,7 @@ const WPKQAmin = () => {
 		bindEvents();
 		initSortable();
 		fetchQueue();
+		loadYouTubeApi();
 
 		// Start the auto-refresh chain.
 		setTimeout( refreshPending, PENDING_REFRESH_MS );

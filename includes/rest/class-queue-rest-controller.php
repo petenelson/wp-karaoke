@@ -74,7 +74,7 @@ class Queue_Rest_Controller {
 				'methods'             => \WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'add_singer' ),
 				'permission_callback' => array( $this, 'update_queue_permissions_check' ),
-				'args'                => $this->get_slug_arg(),
+				'args'                => array_merge( $this->get_slug_arg(), $this->get_youtube_playable_arg() ),
 			)
 		);
 
@@ -88,7 +88,7 @@ class Queue_Rest_Controller {
 					'methods'             => \WP_REST_Server::EDITABLE,
 					'callback'            => array( $this, 'update_singer' ),
 					'permission_callback' => array( $this, 'update_queue_permissions_check' ),
-					'args'                => $this->get_slug_arg(),
+					'args'                => array_merge( $this->get_slug_arg(), $this->get_youtube_playable_arg() ),
 				),
 				array(
 					'methods'             => \WP_REST_Server::DELETABLE,
@@ -323,6 +323,11 @@ class Queue_Rest_Controller {
 			if ( null !== $request->get_param( 'youtube_url' ) ) {
 				$singer['youtube_url'] = esc_url_raw( $request->get_param( 'youtube_url' ) );
 			}
+			$json_params = $request->get_json_params() ?? [];
+			if ( array_key_exists( 'youtube_playable', $json_params ) ) {
+				$val                       = $json_params['youtube_playable'];
+				$singer['youtube_playable'] = is_null( $val ) ? null : (bool) $val;
+			}
 			if ( null !== $request->get_param( 'completed_time' ) ) {
 				$singer['completed_time'] = absint( $request->get_param( 'completed_time' ) );
 			}
@@ -533,18 +538,39 @@ class Queue_Rest_Controller {
 	private function sanitize_singer( $singer ) {
 		$valid_statuses = array( 'kj-received', 'in-the-queue', 'on-stage', 'finished' );
 
+		$youtube_playable = null;
+		if ( array_key_exists( 'youtube_playable', $singer ) ) {
+			$youtube_playable = is_null( $singer['youtube_playable'] ) ? null : (bool) $singer['youtube_playable'];
+		}
+
 		return array(
-			'id'             => isset( $singer['id'] ) ? preg_replace( '/[^A-Za-z0-9]/', '', $singer['id'] ) : '',
-			'singer_name'    => isset( $singer['singer_name'] ) ? substr( sanitize_text_field( $singer['singer_name'] ), 0, 50 ) : '',
-			'song'           => isset( $singer['song'] ) ? substr( sanitize_text_field( $singer['song'] ), 0, 50 ) : '',
-			'artist'         => isset( $singer['artist'] ) ? substr( sanitize_text_field( $singer['artist'] ), 0, 50 ) : '',
-			'youtube_url'    => isset( $singer['youtube_url'] ) ? esc_url_raw( $singer['youtube_url'] ) : '',
-			'signup_time'    => isset( $singer['signup_time'] ) ? absint( $singer['signup_time'] ) : 0,
-			'completed_time' => isset( $singer['completed_time'] ) ? absint( $singer['completed_time'] ) : 0,
-			'status'         => ( isset( $singer['status'] ) && in_array( $singer['status'], $valid_statuses, true ) )
+			'id'               => isset( $singer['id'] ) ? preg_replace( '/[^A-Za-z0-9]/', '', $singer['id'] ) : '',
+			'singer_name'      => isset( $singer['singer_name'] ) ? substr( sanitize_text_field( $singer['singer_name'] ), 0, 50 ) : '',
+			'song'             => isset( $singer['song'] ) ? substr( sanitize_text_field( $singer['song'] ), 0, 50 ) : '',
+			'artist'           => isset( $singer['artist'] ) ? substr( sanitize_text_field( $singer['artist'] ), 0, 50 ) : '',
+			'youtube_url'      => isset( $singer['youtube_url'] ) ? esc_url_raw( $singer['youtube_url'] ) : '',
+			'youtube_playable' => $youtube_playable,
+			'signup_time'      => isset( $singer['signup_time'] ) ? absint( $singer['signup_time'] ) : 0,
+			'completed_time'   => isset( $singer['completed_time'] ) ? absint( $singer['completed_time'] ) : 0,
+			'status'           => ( isset( $singer['status'] ) && in_array( $singer['status'], $valid_statuses, true ) )
 				? $singer['status']
 				: 'kj-received',
 		);
+	}
+
+	/**
+	 * Get the youtube_playable argument definition.
+	 *
+	 * @return array
+	 */
+	private function get_youtube_playable_arg() {
+		return [
+			'youtube_playable' => [
+				'required'    => false,
+				'type'        => [ 'boolean', 'null' ],
+				'description' => __( 'Whether the YouTube video can be played in an iframe embed. Null means unchecked.', 'wp-karaoke' ),
+			],
+		];
 	}
 
 	/**

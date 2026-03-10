@@ -532,6 +532,45 @@
 	border-top: 1px solid var( --wpkq-border );
 }
 
+/* ─── Song Link ──────────────────────────────────────────────────────────────── */
+.wpkq-song-link {
+	color: var( --wpkq-primary );
+	text-decoration: none;
+}
+
+.wpkq-song-link:hover {
+	text-decoration: underline;
+}
+
+/* ─── YouTube Status Dot ─────────────────────────────────────────────────────── */
+.wpkq-yt-dot {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	vertical-align: middle;
+	margin-left: 5px;
+	flex-shrink: 0;
+}
+
+.wpkq-yt-dot--ok {
+	background: var( --wpkq-success );
+}
+
+.wpkq-yt-dot--err {
+	background: var( --wpkq-danger );
+}
+
+.wpkq-yt-dot--checking {
+	background: var( --wpkq-text-muted );
+	animation: wpkq-yt-pulse 1s ease-in-out infinite;
+}
+
+@keyframes wpkq-yt-pulse {
+	0%, 100% { opacity: 1; }
+	50%       { opacity: 0.25; }
+}
+
 /* ─── Responsive (Mobile) ────────────────────────────────────────────────────── */
 @media ( max-width: 640px ) {
 
