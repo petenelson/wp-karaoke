@@ -93,6 +93,9 @@ const NowPlayingBlock = {
 		}
 	},
 
+	/** Maximum number of in-the-queue singers shown in the ticker (excluding on-stage). */
+	TICKER_QUEUE_LIMIT: 4,
+
 	/**
 	 * Build a placeholder ticker item for an empty queue.
 	 *
@@ -106,13 +109,34 @@ const NowPlayingBlock = {
 	},
 
 	/**
+	 * Build a "+X More" overflow item shown when the queue exceeds the display limit.
+	 *
+	 * @param {number} count Number of additional singers not shown.
+	 * @return {HTMLElement}
+	 */
+	buildMoreItem: ( count ) => {
+		const span = document.createElement( 'span' );
+		span.className   = 'wpkq-monitor__ticker-item wpkq-monitor__ticker-item--more';
+		span.textContent = `+${ count } More`;
+		return span;
+	},
+
+	/**
 	 * Build an array of ticker <span> elements from singers data.
 	 *
-	 * @param {Array} singers In-the-queue singers.
+	 * Shows the on-stage singer first, then up to TICKER_QUEUE_LIMIT in-the-queue
+	 * singers, followed by a "+X More" item if additional singers exist.
+	 *
+	 * @param {Array} singers Singer objects from the REST API.
 	 * @return {HTMLElement[]}
 	 */
 	buildItems: ( singers ) => {
-		return singers.map( ( singer ) => {
+		const onStage = singers.filter( ( s ) => s.status === 'on-stage' );
+		const inQueue = singers.filter( ( s ) => s.status === 'in-the-queue' );
+		const visible = inQueue.slice( 0, NowPlayingBlock.TICKER_QUEUE_LIMIT );
+		const overflow = inQueue.length - visible.length;
+
+		const items = [ ...onStage, ...visible ].map( ( singer ) => {
 			const isOnStage  = singer.status === 'on-stage';
 			const prefix     = isOnStage ? 'On Stage: ' : '';
 			const name       = singer.singer_name || '';
@@ -135,6 +159,12 @@ const NowPlayingBlock = {
 			span.textContent = prefix + name;
 			return span;
 		} );
+
+		if ( overflow > 0 ) {
+			items.push( NowPlayingBlock.buildMoreItem( overflow ) );
+		}
+
+		return items;
 	},
 
 	/**
