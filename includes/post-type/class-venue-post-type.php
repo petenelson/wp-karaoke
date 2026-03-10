@@ -38,12 +38,12 @@ class Venue_Post_Type {
 	 * Register hooks.
 	 */
 	public function register() {
-		add_action( 'init', array( $this, 'register_post_type' ) );
-		add_action( 'init', array( $this, 'register_post_meta' ) );
-		add_filter( 'manage_' . self::POST_TYPE . '_posts_columns', array( $this, 'add_admin_columns' ) );
-		add_action( 'manage_' . self::POST_TYPE . '_posts_custom_column', array( $this, 'render_admin_column' ), 10, 2 );
-		add_filter( 'template_include', array( $this, 'load_single_template' ) );
-		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
+		add_action( 'init', [ $this, 'register_post_type' ] );
+		add_action( 'init', [ $this, 'register_post_meta' ] );
+		add_filter( 'manage_' . self::POST_TYPE . '_posts_columns', [ $this, 'add_admin_columns' ] );
+		add_action( 'manage_' . self::POST_TYPE . '_posts_custom_column', [ $this, 'render_admin_column' ], 10, 2 );
+		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_frontend_assets' ] );
+		add_filter( 'query_vars', [ $this, 'modify_query_vars' ] );
 	}
 
 	/**
@@ -75,10 +75,10 @@ class Venue_Post_Type {
 			'rewrite'             => array( 'slug' => 'karaoke' ),
 			'capability_type'     => 'post',
 			'has_archive'         => false,
-			'hierarchical'        => false,
+			'hierarchical'        => true,
 			'menu_position'       => null,
 			'menu_icon'           => 'dashicons-format-audio',
-			'supports'            => array( 'title' ),
+			'supports'            => array( 'title', 'editor', 'page-attributes' ),
 			'show_in_rest'        => true,
 			'capabilities'        => array(
 				'edit_post'          => 'manage_options',
@@ -134,7 +134,7 @@ class Venue_Post_Type {
 		}
 
 		$post = get_post( $post_id );
-		if ( ! $post ) {
+		if ( ! $post || 0 !== (int) $post->post_parent ) {
 			return;
 		}
 
@@ -198,16 +198,6 @@ class Venue_Post_Type {
 		return update_post_meta( $post_id, self::META_KEY, wp_json_encode( $queue ) );
 	}
 
-	public function load_single_template( $template ) {
-		if ( is_singular( self::POST_TYPE ) ) {
-			$custom_template = WPKQ_PLUGIN_DIR . '/templates/single-queue.php';
-			if ( file_exists( $custom_template ) ) {
-				return $custom_template;
-			}
-		}
-		return $template;
-	}
-
 	/**
 	 * Enqueue frontend assets for the queue page.
 	 */
@@ -220,5 +210,17 @@ class Venue_Post_Type {
 				'slug'     => get_post_field( 'post_name', get_the_ID() ),
 			) );
 		}
+	}
+
+	/**
+	 * Modify query args to ensure only top-level venue posts are queried on the frontend.
+	 *
+	 * @param array $vars Query vars.
+	 * @return array Modified query args.
+	 */
+	public function modify_query_vars( $vars ) {
+		$vars[] = 'karaoke-venue';
+		$vars[] = 'karaoke-page';
+		return $vars;
 	}
 }
