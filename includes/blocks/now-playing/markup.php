@@ -95,6 +95,7 @@ $rest_url = esc_url_raw( rest_url( 'wpkq/v1/queue?slug=' . rawurlencode( $venue_
 	data-venue-slug="<?php echo esc_attr( $venue_slug ); ?>"
 	data-rest-url="<?php echo esc_attr( $rest_url ); ?>"
 	data-advance-url="<?php echo esc_attr( esc_url_raw( rest_url( 'wpkq/v1/queue/advance' ) ) ); ?>"
+	data-actions-url="<?php echo esc_attr( esc_url_raw( rest_url( 'wpkq/v1/actions' ) ) ); ?>"
 	data-ticker-queue-limit="<?php echo esc_attr( $ticker_queue_limit ); ?>"
 >
 	<form class="wpkq-monitor__url-bar" id="wpkq-url-form" novalidate>

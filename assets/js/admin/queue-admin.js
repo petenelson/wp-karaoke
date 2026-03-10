@@ -76,7 +76,7 @@ const WPKQAmin = () => {
 		editYoutubeUrl:  document.getElementById( 'wpkq-edit-youtube-url' ),
 	};
 
-	const { apiBase, nonce, venueSlug, i18n } = wpkqAdmin;
+	const { apiBase, nonce, venueSlug, actionsApiBase, i18n } = wpkqAdmin;
 
 	const singerApiBase = apiBase + '/singer';
 	const reorderApiUrl = apiBase + '/reorder';
@@ -273,6 +273,25 @@ const WPKQAmin = () => {
 		} catch ( err ) {
 			showSaveStatus( i18n.saveError, true );
 			console.error( 'WPKQ reorderQueue error:', err );
+		}
+	}
+
+	/**
+	 * Post an action signal to the actions REST endpoint.
+	 *
+	 * @param {string} action    Action slug, e.g. 'set-on-stage'.
+	 * @param {string} singerId  Singer ID the action relates to.
+	 * @return {Promise<void>}
+	 */
+	async function postAction( action, singerId ) {
+		try {
+			await apiRequest( 'POST', actionsApiBase, {
+				slug:      venueSlug,
+				action:    action,
+				singer_id: singerId,
+			} );
+		} catch ( err ) {
+			console.error( 'WPKQ: Failed to post action.', err );
 		}
 	}
 
@@ -876,6 +895,7 @@ const WPKQAmin = () => {
 
 			case 'on-stage':
 				updateSinger( singer.id, { status: 'on-stage' } );
+				postAction( 'set-on-stage', singer.id );
 				break;
 
 			case 'edit':

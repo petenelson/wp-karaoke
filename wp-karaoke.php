@@ -29,6 +29,7 @@ if ( file_exists( WPKQ_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 // Load plugin classes.
 require_once WPKQ_PLUGIN_DIR . 'includes/post-type/class-venue-post-type.php';
 require_once WPKQ_PLUGIN_DIR . 'includes/rest/class-queue-rest-controller.php';
+require_once WPKQ_PLUGIN_DIR . 'includes/rest/class-actions-rest-controller.php';
 require_once WPKQ_PLUGIN_DIR . 'includes/admin/class-queue-admin.php';
 require_once WPKQ_PLUGIN_DIR . 'includes/blocks/class-now-playing-block.php';
 require_once WPKQ_PLUGIN_DIR . 'includes/blocks/class-singer-signup-block.php';
@@ -42,6 +43,9 @@ function wpkq_init() {
 
 	$rest_controller = new REST\Queue_Rest_Controller();
 	$rest_controller->register();
+
+	$actions_controller = new REST\Actions_Rest_Controller();
+	$actions_controller->register();
 
 	$queue_admin = new Admin\Queue_Admin();
 	$queue_admin->register();

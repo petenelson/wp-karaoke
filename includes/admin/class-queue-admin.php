@@ -91,7 +91,8 @@ class Queue_Admin {
 			'wpkq-admin',
 			'wpkqAdmin',
 			array(
-				'apiBase'   => esc_url_raw( rest_url( 'wpkq/v1/queue' ) ),
+				'apiBase'        => esc_url_raw( rest_url( 'wpkq/v1/queue' ) ),
+				'actionsApiBase' => esc_url_raw( rest_url( 'wpkq/v1/actions' ) ),
 				'nonce'     => wp_create_nonce( 'wp_rest' ),
 				'venueSlug' => $slug,
 				'i18n'      => array(

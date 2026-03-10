@@ -229,6 +229,65 @@ const NowPlayingBlock = {
 	},
 
 	/**
+	 * Start polling the actions endpoint once per second.
+	 *
+	 * @param {string}      actionsUrl  Base URL for the actions REST endpoint.
+	 * @param {string}      venueSlug   Venue slug.
+	 * @param {HTMLElement} tickerInner Ticker inner element.
+	 */
+	startActionPolling: ( actionsUrl, venueSlug, tickerInner ) => {
+		const poll = () => {
+			NowPlayingBlock.fetchActions( actionsUrl, venueSlug, tickerInner );
+			setTimeout( poll, 1000 );
+		};
+		setTimeout( poll, 1000 );
+	},
+
+	/**
+	 * Fetch pending actions from the REST endpoint and handle each one.
+	 *
+	 * @param {string}      actionsUrl  Base URL for the actions REST endpoint.
+	 * @param {string}      venueSlug   Venue slug.
+	 * @param {HTMLElement} tickerInner Ticker inner element.
+	 */
+	fetchActions: ( actionsUrl, venueSlug, tickerInner ) => {
+		fetch( `${ actionsUrl }?slug=${ encodeURIComponent( venueSlug ) }` )
+			.then( ( res ) => res.json() )
+			.then( ( data ) => {
+				( data.actions || [] ).forEach( ( action ) => {
+					NowPlayingBlock.handleAction( action, actionsUrl, venueSlug, tickerInner );
+				} );
+			} )
+			.catch( () => {} );
+	},
+
+	/**
+	 * Handle a single action from the actions endpoint.
+	 * Deletes the action first (to prevent re-processing), then performs it.
+	 *
+	 * @param {Object}      action      Action object with id, action, singer_id.
+	 * @param {string}      actionsUrl  Base URL for the actions REST endpoint.
+	 * @param {string}      venueSlug   Venue slug.
+	 * @param {HTMLElement} tickerInner Ticker inner element.
+	 */
+	handleAction: ( action, actionsUrl, venueSlug, tickerInner ) => {
+		if ( 'set-on-stage' !== action.action ) {
+			return;
+		}
+
+		// Delete first to prevent re-processing on the next poll.
+		fetch(
+			`${ actionsUrl }/${ encodeURIComponent( action.id ) }?slug=${ encodeURIComponent( venueSlug ) }`,
+			{ method: 'DELETE' }
+		).catch( () => {} );
+
+		const item = tickerInner.querySelector( `[data-singer-id="${ action.singer_id }"]` );
+		if ( item ) {
+			item.click();
+		}
+	},
+
+	/**
 	 * Initialise the Now Playing block.
 	 */
 	init: () => {
@@ -247,6 +306,7 @@ const NowPlayingBlock = {
 
 		const restUrl     = wrapper.dataset.restUrl;
 		const advanceUrl  = wrapper.dataset.advanceUrl;
+		const actionsUrl  = wrapper.dataset.actionsUrl;
 		const venueSlug   = wrapper.dataset.venueSlug;
 		const limitAttr   = parseInt( wrapper.dataset.tickerQueueLimit, 10 );
 
@@ -349,6 +409,11 @@ const NowPlayingBlock = {
 
 		// Initial load.
 		NowPlayingBlock.fetchQueue( restUrl, ( singers ) => NowPlayingBlock.renderTicker( tickerInner, singers ) );
+
+		// Start polling for admin-triggered actions (e.g. set-on-stage).
+		if ( actionsUrl && venueSlug ) {
+			NowPlayingBlock.startActionPolling( actionsUrl, venueSlug, tickerInner );
+		}
 	},
 };
 
