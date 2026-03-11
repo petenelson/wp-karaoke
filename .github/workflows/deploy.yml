@@ -72,7 +72,6 @@ jobs:
 
       - name: List files for debugging, excluding node_modules and vendor
         run: |
-          ls -la ~/.ssh
           echo "Listing files in the repository (excluding node_modules and vendor):"
           find . -type f -not -path "./node_modules/*" -not -path "./vendor/*" -not -path "./.github/*" -not -path "./.git/*"
 
@@ -80,3 +79,5 @@ jobs:
         run: |
           echo "Verifying SSH connection:"
           ssh -o StrictHostKeyChecking=yes ${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }} "echo 'SSH connection successful!'"
+          echo "Listing files in the remote directory for debugging:"
+          ssh -o StrictHostKeyChecking=yes ${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }} "ls -la ${{ vars.DEPLOY_PATH }}"
