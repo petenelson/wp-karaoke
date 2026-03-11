@@ -7,6 +7,8 @@
 
 namespace WPKQ\Admin;
 
+use WPKQ\PostType\Venue;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -157,7 +159,7 @@ class QueueAdmin {
 		}
 
 		$venue        = $posts[0];
-		$signups_open = (bool) get_post_meta( $venue->ID, \WPKQ\Post_Type\Venue_Post_Type::SIGNUPS_META_KEY, true );
+		$signups_open = (bool) get_post_meta( $venue->ID, Venue::SIGNUPS_META_KEY, true );
 		?>
 		<div class="wpkq-admin-wrap wrap" id="wpkq-app">
 			<div class="wpkq-header">
