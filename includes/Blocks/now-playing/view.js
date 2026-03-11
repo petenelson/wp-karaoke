@@ -278,22 +278,24 @@ const NowPlayingBlock = {
 			{ method: 'DELETE' }
 		).catch( () => {} );
 
-		if ( 'set-on-stage' === action.action ) {
-			const item = tickerInner.querySelector( `[data-singer-id="${ action.singer_id }"]` );
-			if ( item ) {
-				item.click();
-			}
-		} else if ( 'toggle-playback' === action.action ) {
-			const player = NowPlayingBlock.player;
-			if ( player && typeof player.getPlayerState === 'function' ) {
-				if ( window.YT.PlayerState.PLAYING === player.getPlayerState() ) {
-					player.pauseVideo();
-				} else {
-					player.playVideo();
+		switch ( action.action ) {
+			case 'set-on-stage':
+				const item = tickerInner.querySelector( `[data-singer-id="${ action.singer_id }"]` );
+				if ( item ) {
+					item.click();
 				}
-			}
-		} else {
-			return;
+				break;
+
+			case 'toggle-playback':
+				const player = NowPlayingBlock.player;
+				if ( player && typeof player.getPlayerState === 'function' ) {
+					if ( window.YT.PlayerState.PLAYING === player.getPlayerState() ) {
+						player.pauseVideo();
+					} else {
+						player.playVideo();
+					}
+				}
+				break;
 		}
 	},
 
