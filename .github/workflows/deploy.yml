@@ -83,11 +83,5 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
-          echo "${{env.DEPLOY_USER}}" >> ~/debug.log
-          echo "${{env.DEPLOY_HOST}}" >> ~/debug.log
-          echo "${{env.DEPLOY_PATH}}" >> ~/debug.log
-          cat ~/debug.log
           echo "Verifying SSH connection:"
-          ssh -o ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} "echo 'SSH connection successful!'"          echo "Listing files in the remote repository for debugging:"
-          echo "Listing files in the remote repository for debugging:"
-          ssh -o ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} "ls -la ${{ env.DEPLOY_PATH }}"
+          ssh -o ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} "echo 'SSH connection successful!'"
