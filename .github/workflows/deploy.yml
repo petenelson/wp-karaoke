@@ -23,11 +23,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # - name: List files for debugging, excluding node_modules and vendor
-      #   run: |
-      #     echo "Listing files in the repository (excluding node_modules and vendor):"
-      #     find . -type f -not -path "./node_modules/*" -not -path "./vendor/*" -not -path "./.github/*" -not -path "./.git/*"
-
       # - name: Cached node_modules
       #   uses: actions/cache@v5
       #   with: 
@@ -74,6 +69,11 @@ jobs:
         run: |
           echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
           cat ~/.ssh/known_hosts
+
+      - name: List files for debugging, excluding node_modules and vendor
+        run: |
+          echo "Listing files in the repository (excluding node_modules and vendor):"
+          find . -type f -not -path "./node_modules/*" -not -path "./vendor/*" -not -path "./.github/*" -not -path "./.git/*"
 
       - name: List remote files for debugging and verify SSH connection
         run: |
