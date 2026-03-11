@@ -55,6 +55,24 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           echo "$KNOWN_HOSTS" >> ~/.ssh/known_hosts
 
+          # Validate REMOTE_PATH before running rsync with --delete
+          if [ -z "$REMOTE_PATH" ]; then
+            echo "Error: REMOTE_PATH is empty. Aborting deployment."
+            exit 1
+          fi
+
+          if [ "$REMOTE_PATH" = "/" ]; then
+            echo "Error: REMOTE_PATH cannot be '/'. Aborting deployment to avoid deleting root."
+            exit 1
+          fi
+
+          case "$REMOTE_PATH" in
+            /*) ;;
+            *)
+              echo "Error: REMOTE_PATH must be an absolute path (start with '/'). Aborting deployment."
+              exit 1
+              ;;
+          esac
           rsync -az --delete \
             --exclude='.git/' \
             --exclude='.github/' \
