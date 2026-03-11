@@ -52,9 +52,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          printf '%s' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          echo "$KNOWN_HOSTS" >> ~/.ssh/known_hosts
+          printf '%s\n' "$KNOWN_HOSTS" >> ~/.ssh/known_hosts
 
           # Validate REMOTE_PATH before running rsync with --delete
           if [ -z "$REMOTE_PATH" ]; then
