@@ -271,9 +271,6 @@ const NowPlayingBlock = {
 	 * @param {HTMLElement} tickerInner Ticker inner element.
 	 */
 	handleAction: ( action, actionsUrl, venueSlug, tickerInner ) => {
-		if ( 'set-on-stage' !== action.action ) {
-			return;
-		}
 
 		// Delete first to prevent re-processing on the next poll.
 		fetch(
@@ -281,9 +278,24 @@ const NowPlayingBlock = {
 			{ method: 'DELETE' }
 		).catch( () => {} );
 
-		const item = tickerInner.querySelector( `[data-singer-id="${ action.singer_id }"]` );
-		if ( item ) {
-			item.click();
+		switch ( action.action ) {
+			case 'set-on-stage':
+				const item = tickerInner.querySelector( `[data-singer-id="${ action.singer_id }"]` );
+				if ( item ) {
+					item.click();
+				}
+				break;
+
+			case 'toggle-playback':
+				const player = NowPlayingBlock.player;
+				if ( player && typeof player.getPlayerState === 'function' ) {
+					if ( window.YT.PlayerState.PLAYING === player.getPlayerState() ) {
+						player.pauseVideo();
+					} else {
+						player.playVideo();
+					}
+				}
+				break;
 		}
 	},
 

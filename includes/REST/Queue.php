@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 use WPKQ\PostType\Venue;
+use WPKQ\Blocks\NowPlaying;
 
 /**
  * Class Queue
@@ -209,7 +210,7 @@ class Queue {
 			return $result;
 		}
 
-		$queue = $result['queue'];
+		$queue = array_merge( $result['queue'], Venue::get_new_singers( $result['post_id'] ) );
 
 		// Filter to active singers only for non-logged-in users.
 		if ( ! is_user_logged_in() ) {
@@ -319,11 +320,13 @@ class Queue {
 			return $result;
 		}
 
-		$post_id        = $result['post_id'];
-		$queue          = $result['queue'];
-		$found          = false;
-		$new_status     = null;
-		$valid_statuses = [ 'kj-received', 'in-the-queue', 'on-stage', 'finished' ];
+		$post_id           = $result['post_id'];
+		$queue             = $result['queue'];
+		$found             = false;
+		$from_new_singer   = false;
+		$new_status        = null;
+		$valid_statuses    = [ 'kj-received', 'in-the-queue', 'on-stage', 'finished' ];
+		$json_params       = $request->get_json_params() ?? [];
 
 		foreach ( $queue as &$singer ) {
 			if ( ( $singer['id'] ?? '' ) !== $id ) {
@@ -342,7 +345,6 @@ class Queue {
 			if ( null !== $request->get_param( 'youtube_url' ) ) {
 				$singer['youtube_url'] = esc_url_raw( $request->get_param( 'youtube_url' ) );
 			}
-			$json_params = $request->get_json_params() ?? [];
 			if ( array_key_exists( 'youtube_playable', $json_params ) ) {
 				$val                       = $json_params['youtube_playable'];
 				$singer['youtube_playable'] = is_null( $val ) ? null : (bool) $val;
@@ -363,6 +365,57 @@ class Queue {
 		}
 		unset( $singer );
 
+		// If not found in the main queue, check pending new-singer meta entries.
+		if ( ! $found ) {
+			$new_singers = Venue::get_new_singers( $post_id );
+			foreach ( $new_singers as $new_singer ) {
+				if ( ( $new_singer['id'] ?? '' ) !== $id ) {
+					continue;
+				}
+
+				if ( null !== $request->get_param( 'singer_name' ) ) {
+					$new_singer['singer_name'] = substr( sanitize_text_field( $request->get_param( 'singer_name' ) ), 0, 50 );
+				}
+				if ( null !== $request->get_param( 'song' ) ) {
+					$new_singer['song'] = substr( sanitize_text_field( $request->get_param( 'song' ) ), 0, 50 );
+				}
+				if ( null !== $request->get_param( 'artist' ) ) {
+					$new_singer['artist'] = substr( sanitize_text_field( $request->get_param( 'artist' ) ), 0, 50 );
+				}
+				if ( null !== $request->get_param( 'youtube_url' ) ) {
+					$new_singer['youtube_url'] = esc_url_raw( $request->get_param( 'youtube_url' ) );
+				}
+				if ( array_key_exists( 'youtube_playable', $json_params ) ) {
+					$val                            = $json_params['youtube_playable'];
+					$new_singer['youtube_playable'] = is_null( $val ) ? null : (bool) $val;
+				}
+				if ( null !== $request->get_param( 'completed_time' ) ) {
+					$new_singer['completed_time'] = absint( $request->get_param( 'completed_time' ) );
+				}
+				if ( null !== $request->get_param( 'status' ) ) {
+					$status_param = $request->get_param( 'status' );
+					if ( in_array( $status_param, $valid_statuses, true ) ) {
+						$new_singer['status'] = $status_param;
+						$new_status           = $status_param;
+					}
+				}
+
+				if ( null !== $new_status && 'kj-received' !== $new_status ) {
+					// Promote singer: move from individual meta into the main queue.
+					$queue[] = $new_singer;
+					Venue::save_queue( $post_id, $queue );
+					Venue::delete_new_singer( $post_id, $id );
+				} else {
+					// Still pending: update the individual meta entry only.
+					Venue::save_new_singer( $post_id, $new_singer );
+				}
+
+				$found           = true;
+				$from_new_singer = true;
+				break;
+			}
+		}
+
 		if ( ! $found ) {
 			return new \WP_Error(
 				'singer_not_found',
@@ -371,24 +424,26 @@ class Queue {
 			);
 		}
 
-		// Revert any other on-stage singer when promoting a new one.
-		if ( 'on-stage' === $new_status ) {
-			foreach ( $queue as &$singer ) {
-				if ( ( $singer['id'] ?? '' ) !== $id && 'on-stage' === ( $singer['status'] ?? '' ) ) {
-					$singer['status'] = 'in-the-queue';
+		if ( ! $from_new_singer ) {
+			// Revert any other on-stage singer when promoting a new one.
+			if ( 'on-stage' === $new_status ) {
+				foreach ( $queue as &$singer ) {
+					if ( ( $singer['id'] ?? '' ) !== $id && 'on-stage' === ( $singer['status'] ?? '' ) ) {
+						$singer['status'] = 'in-the-queue';
+					}
 				}
+				unset( $singer );
 			}
-			unset( $singer );
-		}
 
-		$saved = Venue::save_queue( $post_id, $queue );
+			$saved = Venue::save_queue( $post_id, $queue );
 
-		if ( false === $saved ) {
-			return new \WP_Error(
-				'save_failed',
-				__( 'Failed to save queue.', 'wp-karaoke' ),
-				[ 'status' => 500 ]
-			);
+			if ( false === $saved ) {
+				return new \WP_Error(
+					'save_failed',
+					__( 'Failed to save queue.', 'wp-karaoke' ),
+					[ 'status' => 500 ]
+				);
+			}
 		}
 
 		return $this->get_queue( $request );
@@ -425,11 +480,18 @@ class Queue {
 		);
 
 		if ( count( $queue ) === $original_count ) {
-			return new \WP_Error(
-				'singer_not_found',
-				__( 'Singer not found in queue.', 'wp-karaoke' ),
-				[ 'status' => 404 ]
-			);
+			// Singer was not in the main queue; check pending new-singer meta.
+			$deleted = Venue::delete_new_singer( $post_id, $id );
+
+			if ( ! $deleted ) {
+				return new \WP_Error(
+					'singer_not_found',
+					__( 'Singer not found in queue.', 'wp-karaoke' ),
+					[ 'status' => 404 ]
+				);
+			}
+
+			return $this->get_queue( $request );
 		}
 
 		$saved = Venue::save_queue( $post_id, $queue );
@@ -535,7 +597,8 @@ class Queue {
 			return $result;
 		}
 
-		$saved = Venue::save_queue( $result['post_id'], [] );
+		$post_id = $result['post_id'];
+		$saved   = Venue::save_queue( $post_id, [] );
 
 		if ( false === $saved ) {
 			return new \WP_Error(
@@ -544,6 +607,8 @@ class Queue {
 				[ 'status' => 500 ]
 			);
 		}
+
+		Venue::delete_all_new_singers( $post_id );
 
 		return $this->get_queue( $request );
 	}
@@ -635,8 +700,8 @@ class Queue {
 			);
 		}
 
-		$password    = get_post_meta( $posts[0]->ID, \WPKQ\Blocks\Now_Playing_Block::PASSWORD_META_KEY, true );
-		$cookie_name = \WPKQ\Blocks\Now_Playing_Block::get_cookie_name( $slug );
+		$password    = get_post_meta( $posts[0]->ID, NowPlaying::PASSWORD_META_KEY, true );
+		$cookie_name = NowPlaying::get_cookie_name( $slug );
 
 		if (
 			empty( $password ) ||
@@ -670,9 +735,6 @@ class Queue {
 			return $result;
 		}
 
-		$post_id = $result['post_id'];
-		$queue   = $result['queue'];
-
 		$new_singer = [
 			'id'             => wp_generate_password( 10, false, false ),
 			'singer_name'    => substr( sanitize_text_field( $request->get_param( 'singer_name' ) ?? '' ), 0, 50 ),
@@ -692,8 +754,7 @@ class Queue {
 			);
 		}
 
-		$queue[] = $new_singer;
-		$saved   = Venue::save_queue( $post_id, $queue );
+		$saved = Venue::save_new_singer( $result['post_id'], $new_singer );
 
 		if ( false === $saved ) {
 			return new \WP_Error(

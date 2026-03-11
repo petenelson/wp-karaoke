@@ -56,6 +56,7 @@ const WPKQAmin = () => {
 
 		refreshBtn:       document.getElementById( 'wpkq-refresh-btn' ),
 		resetQueueBtn:    document.getElementById( 'wpkq-reset-queue-btn' ),
+		playbackBtn:      document.getElementById( 'wpkq-playback-btn' ),
 
 		// On Stage section
 		onStageSection:   document.getElementById( 'wpkq-on-stage-section' ),
@@ -1069,6 +1070,9 @@ const WPKQAmin = () => {
 	function bindEvents() {
 		// Refresh button.
 		el.refreshBtn.addEventListener( 'click', fetchQueue );
+
+		// Play/Pause button.
+		el.playbackBtn.addEventListener( 'click', () => postAction( 'toggle-playback', '' ) );
 
 		// Reset queue button.
 		el.resetQueueBtn.addEventListener( 'click', function () {

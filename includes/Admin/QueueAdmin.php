@@ -193,6 +193,9 @@ class QueueAdmin {
 					<h2 class="wpkq-section-title">
 						<span class="wpkq-badge wpkq-badge--on-stage">🎤</span>
 						<?php esc_html_e( 'On Stage', 'wp-karaoke' ); ?>
+						<button class="wpkq-btn wpkq-btn--playback" id="wpkq-playback-btn" aria-label="<?php esc_attr_e( 'Toggle playback', 'wp-karaoke' ); ?>">
+							⏯ <?php esc_html_e( 'Play/Pause', 'wp-karaoke' ); ?>
+						</button>
 					</h2>
 					<div class="wpkq-table-wrap">
 						<table class="wpkq-table" id="wpkq-on-stage-table">

@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use WPKQ\Blocks\Now_Playing_Block;
+use WPKQ\Blocks\NowPlaying;
 
 /**
  * Class Actions
@@ -242,8 +242,8 @@ class Actions {
 			);
 		}
 
-		$password    = get_post_meta( $posts[0]->ID, Now_Playing_Block::PASSWORD_META_KEY, true );
-		$cookie_name = Now_Playing_Block::get_cookie_name( $slug );
+		$password    = get_post_meta( $posts[0]->ID, NowPlaying::PASSWORD_META_KEY, true );
+		$cookie_name = NowPlaying::get_cookie_name( $slug );
 
 		if (
 			empty( $password ) ||
