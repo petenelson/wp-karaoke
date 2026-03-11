@@ -18,8 +18,10 @@ jobs:
       cancel-in-progress: false
 
     steps:
-      - name: Checkout code
+      - name: Checkout code with case-sensitive file system
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: List files for debugging, excluding node_modules and vendor
         run: |
