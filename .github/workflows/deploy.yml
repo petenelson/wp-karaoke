@@ -84,5 +84,4 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
           echo "Listing files in the remote repository for debugging:"
-          ssh -o ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "ls -la ${{ secrets.DEPLOY_PATH }}"
-          
+          ssh -o ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} "ls -la ${{ env.DEPLOY_PATH }}"
