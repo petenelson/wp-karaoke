@@ -300,7 +300,7 @@ class Venue {
 
 		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
+				"SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s ORDER BY meta_id ASC",
 				$post_id,
 				$wpdb->esc_like( self::NEW_SINGER_META_PREFIX ) . '%'
 			)
@@ -349,7 +349,7 @@ class Venue {
 
 		$keys = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT meta_key FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
+				"SELECT meta_key FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s ORDER BY meta_id ASC",
 				$post_id,
 				$wpdb->esc_like( self::NEW_SINGER_META_PREFIX ) . '%'
 			)
