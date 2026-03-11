@@ -271,6 +271,13 @@ const NowPlayingBlock = {
 	 * @param {HTMLElement} tickerInner Ticker inner element.
 	 */
 	handleAction: ( action, actionsUrl, venueSlug, tickerInner ) => {
+
+		// Delete first to prevent re-processing on the next poll.
+		fetch(
+			`${ actionsUrl }/${ encodeURIComponent( action.id ) }?slug=${ encodeURIComponent( venueSlug ) }`,
+			{ method: 'DELETE' }
+		).catch( () => {} );
+
 		if ( 'set-on-stage' === action.action ) {
 			const item = tickerInner.querySelector( `[data-singer-id="${ action.singer_id }"]` );
 			if ( item ) {
@@ -288,12 +295,6 @@ const NowPlayingBlock = {
 		} else {
 			return;
 		}
-
-		// Delete to prevent re-processing on the next poll.
-		fetch(
-			`${ actionsUrl }/${ encodeURIComponent( action.id ) }?slug=${ encodeURIComponent( venueSlug ) }`,
-			{ method: 'DELETE' }
-		).catch( () => {} );
 	},
 
 	/**
