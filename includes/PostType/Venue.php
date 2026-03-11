@@ -42,6 +42,13 @@ class Venue {
 	const SIGNUPS_META_KEY = '_wpkq_signups_open';
 
 	/**
+	 * Post meta key prefix for individual pending singer signups.
+	 *
+	 * @var string
+	 */
+	const NEW_SINGER_META_PREFIX = '_wpkq_new_singer_';
+
+	/**
 	 * Singleton instance.
 	 *
 	 * @var self|null
@@ -280,6 +287,77 @@ class Venue {
 	 */
 	public static function save_queue( $post_id, $queue ) {
 		return update_post_meta( $post_id, self::META_KEY, wp_json_encode( $queue ) );
+	}
+
+	/**
+	 * Get all pending new-singer signups stored as individual post meta entries.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array Flat array of singer arrays.
+	 */
+	public static function get_new_singers( int $post_id ): array {
+		global $wpdb;
+
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
+				$post_id,
+				$wpdb->esc_like( self::NEW_SINGER_META_PREFIX ) . '%'
+			)
+		);
+
+		$singers = [];
+		foreach ( $rows as $row ) {
+			$singer = json_decode( $row->meta_value, true );
+			if ( is_array( $singer ) ) {
+				$singers[] = $singer;
+			}
+		}
+
+		return $singers;
+	}
+
+	/**
+	 * Save a single pending singer signup as an individual post meta entry.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param array $singer  Singer data array (must include 'id').
+	 * @return bool True on success.
+	 */
+	public static function save_new_singer( int $post_id, array $singer ): bool {
+		return (bool) update_post_meta( $post_id, self::NEW_SINGER_META_PREFIX . $singer['id'], wp_json_encode( $singer ) );
+	}
+
+	/**
+	 * Delete the individual post meta entry for a pending singer signup.
+	 *
+	 * @param int    $post_id   Post ID.
+	 * @param string $singer_id Singer ID.
+	 * @return bool True if the meta was deleted, false otherwise.
+	 */
+	public static function delete_new_singer( int $post_id, string $singer_id ): bool {
+		return delete_post_meta( $post_id, self::NEW_SINGER_META_PREFIX . $singer_id );
+	}
+
+	/**
+	 * Delete all individual pending singer signup meta entries for a venue.
+	 *
+	 * @param int $post_id Post ID.
+	 */
+	public static function delete_all_new_singers( int $post_id ): void {
+		global $wpdb;
+
+		$keys = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT meta_key FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
+				$post_id,
+				$wpdb->esc_like( self::NEW_SINGER_META_PREFIX ) . '%'
+			)
+		);
+
+		foreach ( $keys as $key ) {
+			delete_post_meta( $post_id, $key );
+		}
 	}
 
 	/**
