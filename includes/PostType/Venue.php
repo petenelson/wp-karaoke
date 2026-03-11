@@ -5,20 +5,20 @@
  * @package WPKQ\Post_Type
  */
 
-namespace WPKQ\Post_Type;
+namespace WPKQ\PostType;
 
-use WPKQ\REST\Queue_Rest_Controller;
+use WPKQ\REST\Queue;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /**
- * Class Venue_Post_Type
+ * Class Venue
  *
  * Registers and manages the karaoke-venue custom post type.
  */
-class Venue_Post_Type {
+class Venue {
 
 	/**
 	 * Post type slug.
@@ -290,7 +290,7 @@ class Venue_Post_Type {
 			wp_enqueue_style( 'wpkq-queue-style', WPKQ_PLUGIN_URL . 'dist/css/frontend.css', [], WPKQ_VERSION );
 			wp_enqueue_script( 'wpkq-queue-script', WPKQ_PLUGIN_URL . 'dist/js/frontend.js', [], WPKQ_VERSION, true );
 			wp_localize_script( 'wpkq-queue-script', 'WPKQ_Queue_Data', [
-				'rest_url' => '', // esc_url_raw( rest_url( Queue_Rest_Controller::REST_NAMESPACE . Queue_Rest_Controller::ROUTE ) ),
+				'rest_url' => '', // esc_url_raw( rest_url( Queue::REST_NAMESPACE . Queue::ROUTE ) ),
 				'slug'     => get_post_field( 'post_name', get_the_ID() ),
 			] );
 		}

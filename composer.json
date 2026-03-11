@@ -1,33 +1,33 @@
 {
-  "name": "your-vendor/wp-karaoke",
-  "description": "WordPress Karaoke Queue Manager plugin",
-  "type": "wordpress-plugin",
-  "license": "GPL-2.0-or-later",
-  "authors": [
-    {
-      "name": "Your Name",
-      "email": "you@example.com"
-    }
-  ],
-  "require": {
-    "php": ">=7.4"
-  },
-  "require-dev": {
-    "squizlabs/php_codesniffer": "^3.9",
-    "wp-coding-standards/wpcs": "^3.1"
-  },
-  "autoload": {
-    "psr-4": {
-      "WPKQ\\": "includes/"
-    }
-  },
-  "config": {
-    "allow-plugins": {
-      "dealerdirect/phpcodesniffer-composer-installer": true
-    }
-  },
-  "scripts": {
-    "phpcs": "phpcs --standard=WordPress includes/ wp-karaoke.php",
-    "phpcbf": "phpcbf --standard=WordPress includes/ wp-karaoke.php"
-  }
+	"name": "your-vendor/wp-karaoke",
+	"description": "WordPress Karaoke Queue Manager plugin",
+	"type": "wordpress-plugin",
+	"license": "GPL-2.0-or-later",
+	"authors": [
+		{
+			"name": "Your Name",
+			"email": "you@example.com"
+		}
+	],
+	"require": {
+		"php": ">=8.2"
+	},
+	"require-dev": {
+		"squizlabs/php_codesniffer": "^3.9",
+		"wp-coding-standards/wpcs": "^3.1"
+	},
+	"autoload": {
+		"psr-4": {
+			"WPKQ\\": "includes/"
+		}
+	},
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		}
+	},
+	"scripts": {
+		"phpcs": "phpcs --standard=WordPress includes/ wp-karaoke.php",
+		"phpcbf": "phpcbf --standard=WordPress includes/ wp-karaoke.php"
+	}
 }

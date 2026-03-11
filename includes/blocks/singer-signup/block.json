@@ -3,7 +3,7 @@
 	"apiVersion": 3,
 	"name": "wp-karaoke/singer-signup",
 	"version": "1.0.0",
-	"title": "Singer Signup",
+	"title": "Karaoke: Singer Signup",
 	"category": "widgets",
 	"description": "Lets audience members sign up to sing at a karaoke venue.",
 	"textdomain": "wp-karaoke",

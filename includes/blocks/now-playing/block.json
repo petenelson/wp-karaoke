@@ -3,7 +3,7 @@
 	"apiVersion": 3,
 	"name": "wp-karaoke/now-playing",
 	"version": "1.0.0",
-	"title": "Now Playing",
+	"title": "Karaoke: Now Playing",
 	"category": "widgets",
 	"description": "Displays the karaoke now playing monitor with a singer queue ticker.",
 	"textdomain": "wp-karaoke",

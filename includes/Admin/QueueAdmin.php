@@ -12,11 +12,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Class Queue_Admin
+ * Class QueueAdmin
  *
  * Registers and renders the admin queue management page.
  */
-class Queue_Admin {
+class QueueAdmin {
 
 	/**
 	 * Admin page slug.

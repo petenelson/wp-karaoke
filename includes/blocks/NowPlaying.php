@@ -12,11 +12,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Class Now_Playing_Block
+ * Class NowPlaying
  *
  * Registers the Now Playing block and handles password verification.
  */
-class Now_Playing_Block {
+class NowPlaying {
 
 	/**
 	 * Post meta key that stores the monitor password on the venue post.

@@ -11,14 +11,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use WPKQ\Post_Type\Venue_Post_Type;
+use WPKQ\PostType\Venue;
 
 /**
- * Class Queue_Rest_Controller
+ * Class Queue
  *
  * Handles REST API endpoints for the karaoke queue.
  */
-class Queue_Rest_Controller {
+class Queue {
 
 	/**
 	 * REST API namespace.
@@ -203,7 +203,7 @@ class Queue_Rest_Controller {
 	 */
 	public function get_queue( \WP_REST_Request $request ) {
 		$slug   = $request->get_param( 'slug' );
-		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+		$result = Venue::get_queue_by_slug( $slug );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;

@@ -14,13 +14,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 use WPKQ\Blocks\Now_Playing_Block;
 
 /**
- * Class Actions_Rest_Controller
+ * Class Actions
  *
  * Handles REST API endpoints for venue action signalling.
  * Actions are short-lived signals (e.g. "set-on-stage") posted by the admin
  * and consumed by the Now Playing monitor via 1-second polling.
  */
-class Actions_Rest_Controller {
+class Actions {
 
 	/**
 	 * REST API namespace.

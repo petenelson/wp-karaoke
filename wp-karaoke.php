@@ -25,19 +25,5 @@ if ( file_exists( WPKQ_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 	require_once WPKQ_PLUGIN_DIR . 'vendor/autoload.php';
 }
 
-// Load plugin classes.
-$files = [
-	'post-type/class-venue-post-type.php',
-	'rest/class-queue-rest-controller.php',
-	'rest/class-actions-rest-controller.php',
-	'admin/class-queue-admin.php',
-	'blocks/class-now-playing-block.php',
-	'blocks/class-singer-signup-block.php',
-];
-
-foreach ( $files as $file ) {
-	require_once WPKQ_PLUGIN_INCLUDES_DIR . $file;
-}
-
 // Initialize the plugin.
 \WPKQ\Core::instance()->init();

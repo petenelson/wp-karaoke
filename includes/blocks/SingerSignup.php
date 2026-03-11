@@ -12,11 +12,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Class Singer_Signup_Block
+ * Class SingerSignup
  *
  * Registers the public-facing singer signup block.
  */
-class Singer_Signup_Block {
+class SingerSignup {
 
 	/**
 	 * Singleton instance.

@@ -44,11 +44,11 @@ class Core {
 	 * @return void
 	 */
 	public function init(): void {
-		Post_Type\Venue_Post_Type::instance()->register();
-		REST\Queue_Rest_Controller::instance()->register();
-		REST\Actions_Rest_Controller::instance()->register();
-		Admin\Queue_Admin::instance()->register();
-		Blocks\Now_Playing_Block::instance()->register();
-		Blocks\Singer_Signup_Block::instance()->register();
+		PostType\Venue::instance()->register();
+		REST\Queue::instance()->register();
+		REST\Actions::instance()->register();
+		Admin\QueueAdmin::instance()->register();
+		Blocks\NowPlaying::instance()->register();
+		Blocks\SingerSignup::instance()->register();
 	}
 }
