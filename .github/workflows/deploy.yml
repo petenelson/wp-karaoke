@@ -45,6 +45,7 @@ jobs:
       - name: Deploy via rsync
         env:
           SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
           REMOTE_HOST: ${{ secrets.DEPLOY_HOST }}
           REMOTE_USER: ${{ secrets.DEPLOY_USER }}
           REMOTE_PATH: ${{ secrets.DEPLOY_PATH }}
@@ -52,7 +53,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$REMOTE_HOST" >> ~/.ssh/known_hosts
+          echo "$KNOWN_HOSTS" >> ~/.ssh/known_hosts
 
           rsync -az --delete \
             --exclude='.git/' \
@@ -70,5 +71,5 @@ jobs:
             --exclude='CLAUDE.md' \
             --exclude='CONTEXT.md' \
             --exclude='README.md' \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            -e "ssh -i ~/.ssh/deploy_key" \
             ./ "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH"
