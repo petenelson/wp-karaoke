@@ -5,7 +5,7 @@
  */
 
 import { __ } from '@wordpress/i18n';
-import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
+import { useBlockProps, InspectorControls, InnerBlocks } from '@wordpress/block-editor';
 import { PanelBody, RangeControl, SelectControl, TextControl, Spinner } from '@wordpress/components';
 import { useSelect } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
@@ -88,21 +88,15 @@ export default function Edit( { attributes, setAttributes } ) {
 			</InspectorControls>
 
 			<div { ...blockProps }>
-				{ venueId ? (
-					<p className="wpkq-monitor-editor-preview__notice">
-						{ __(
-							'Now Playing block is configured. This block renders on the frontend only.',
-							'wp-karaoke'
-						) }
-					</p>
-				) : (
-					<p className="wpkq-monitor-editor-preview__notice wpkq-monitor-editor-preview__notice--warning">
-						{ __(
-							'Please select a venue in the block settings panel.',
-							'wp-karaoke'
-						) }
-					</p>
-				) }
+				<div className="wpkq-monitor-editor-preview__notice">
+					{ venueId
+						? __( 'Welcome screen content (shown before a video loads):', 'wp-karaoke' )
+						: __( 'Please select a venue in the block settings panel.', 'wp-karaoke' ) }
+				</div>
+				<InnerBlocks
+					template={ [ [ 'core/paragraph', { placeholder: __( 'Add a welcome message…', 'wp-karaoke' ) } ] ] }
+					templateLock={ false }
+				/>
 			</div>
 		</>
 	);

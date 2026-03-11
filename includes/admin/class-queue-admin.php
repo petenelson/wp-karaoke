@@ -26,6 +26,25 @@ class Queue_Admin {
 	const PAGE_SLUG = 'wpkq-manage-queue';
 
 	/**
+	 * Singleton instance.
+	 *
+	 * @var self|null
+	 */
+	static $instance = null;
+
+	/**
+	 * Get the singleton instance.
+	 *
+	 * @return self
+	 */
+	public static function instance(): self {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
+
+	/**
 	 * Register hooks.
 	 */
 	public function register() {

@@ -11,8 +11,6 @@
  * @package WPKQ
  */
 
-namespace WPKQ;
-
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -20,6 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'WPKQ_VERSION', '1.0.0' );
 define( 'WPKQ_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WPKQ_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'WPKQ_PLUGIN_INCLUDES_DIR', WPKQ_PLUGIN_DIR . 'includes/' );
 
 // Load Composer autoloader if available.
 if ( file_exists( WPKQ_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
@@ -27,33 +26,18 @@ if ( file_exists( WPKQ_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 }
 
 // Load plugin classes.
-require_once WPKQ_PLUGIN_DIR . 'includes/post-type/class-venue-post-type.php';
-require_once WPKQ_PLUGIN_DIR . 'includes/rest/class-queue-rest-controller.php';
-require_once WPKQ_PLUGIN_DIR . 'includes/rest/class-actions-rest-controller.php';
-require_once WPKQ_PLUGIN_DIR . 'includes/admin/class-queue-admin.php';
-require_once WPKQ_PLUGIN_DIR . 'includes/blocks/class-now-playing-block.php';
-require_once WPKQ_PLUGIN_DIR . 'includes/blocks/class-singer-signup-block.php';
+$files = [
+	'post-type/class-venue-post-type.php',
+	'rest/class-queue-rest-controller.php',
+	'rest/class-actions-rest-controller.php',
+	'admin/class-queue-admin.php',
+	'blocks/class-now-playing-block.php',
+	'blocks/class-singer-signup-block.php',
+];
 
-/**
- * Initialize the plugin.
- */
-function wpkq_init() {
-	$venue_post_type = new Post_Type\Venue_Post_Type();
-	$venue_post_type->register();
-
-	$rest_controller = new REST\Queue_Rest_Controller();
-	$rest_controller->register();
-
-	$actions_controller = new REST\Actions_Rest_Controller();
-	$actions_controller->register();
-
-	$queue_admin = new Admin\Queue_Admin();
-	$queue_admin->register();
-
-	$now_playing_block = new Blocks\Now_Playing_Block();
-	$now_playing_block->register();
-
-	$singer_signup_block = new Blocks\Singer_Signup_Block();
-	$singer_signup_block->register();
+foreach ( $files as $file ) {
+	require_once WPKQ_PLUGIN_INCLUDES_DIR . $file;
 }
-add_action( 'plugins_loaded', __NAMESPACE__ . '\\wpkq_init' );
+
+// Initialize the plugin.
+\WPKQ\Core::instance()->init();

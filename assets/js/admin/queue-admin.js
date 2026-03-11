@@ -84,6 +84,13 @@ const WPKQAmin = () => {
 	// ─── Utilities ────────────────────────────────────────────────────────────
 
 	/**
+	 * Get the refresh interval with a small random addition to prevent simultaneous refreshes.
+	 *
+	 * @returns {number}
+	 */
+	const getRefreshInterval = () => PENDING_REFRESH_MS + Math.floor( Math.random() * 1000 );
+
+	/**
 	 * Generate a random 10-character alphanumeric ID.
 	 *
 	 * @return {string}
@@ -350,7 +357,7 @@ const WPKQAmin = () => {
 			}
 		}
 
-		setTimeout( refreshPending, PENDING_REFRESH_MS );
+		setTimeout( refreshPending, getRefreshInterval() );
 	}
 
 	/**
@@ -377,7 +384,7 @@ const WPKQAmin = () => {
 			}
 		}
 
-		setTimeout( refreshOnStage, PENDING_REFRESH_MS );
+		setTimeout( refreshOnStage, getRefreshInterval() );
 	}
 
 	// ─── YouTube Playability Check ────────────────────────────────────────────
@@ -1144,8 +1151,8 @@ const WPKQAmin = () => {
 		loadYouTubeApi();
 
 		// Start the auto-refresh chain.
-		setTimeout( refreshPending, PENDING_REFRESH_MS );
-		setTimeout( refreshOnStage, PENDING_REFRESH_MS );
+		setTimeout( refreshPending, getRefreshInterval() );
+		setTimeout( refreshOnStage, getRefreshInterval() );
 	}
 
 	init();

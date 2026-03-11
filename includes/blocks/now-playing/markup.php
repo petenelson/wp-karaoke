@@ -114,15 +114,19 @@ $rest_url = esc_url_raw( rest_url( 'wpkq/v1/queue?slug=' . rawurlencode( $venue_
 
 	<div class="wpkq-monitor__player-wrap">
 		<div class="wpkq-monitor__welcome" id="wpkq-welcome">
-			<p class="wpkq-monitor__welcome-text">
-				<?php
-				printf(
-					/* translators: %s: venue name */
-					esc_html__( 'Welcome to %s karaoke night!', 'wp-karaoke' ),
-					esc_html( $venue->post_title )
-				);
-				?>
-			</p>
+			<?php if ( ! empty( trim( $content ) ) ) : ?>
+				<?php echo $content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+			<?php else : ?>
+				<p class="wpkq-monitor__welcome-text">
+					<?php
+					printf(
+						/* translators: %s: venue name */
+						esc_html__( 'Welcome to %s Karaoke Night!', 'wp-karaoke' ),
+						esc_html( $venue->post_title )
+					);
+					?>
+				</p>
+			<?php endif; ?>
 		</div>
 		<div id="wpkq-yt-player"></div>
 	</div>

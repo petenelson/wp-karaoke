@@ -42,6 +42,25 @@ class Venue_Post_Type {
 	const SIGNUPS_META_KEY = '_wpkq_signups_open';
 
 	/**
+	 * Singleton instance.
+	 *
+	 * @var self|null
+	 */
+	static $instance = null;
+
+	/**
+	 * Get the singleton instance.
+	 *
+	 * @return self
+	 */
+	public static function instance(): self {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
+
+	/**
 	 * Register hooks.
 	 */
 	public function register() {
