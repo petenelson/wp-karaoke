@@ -48,6 +48,6 @@ class SingerSignup {
 	 * Register the block type.
 	 */
 	public function register_block() {
-		register_block_type( WPKQ_PLUGIN_DIR . 'includes/blocks/singer-signup/' );
+		register_block_type( WPKQ_PLUGIN_DIR . 'includes/Blocks/singer-signup/' );
 	}
 }
