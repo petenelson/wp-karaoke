@@ -78,4 +78,4 @@ jobs:
       - name: List remote files for debugging and verify SSH connection
         run: |
           echo "Verifying SSH connection:"
-          ssh -o ${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }} "echo 'SSH connection successful!'"
+          ssh ${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }} "echo 'SSH connection successful!'"
