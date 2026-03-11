@@ -21,6 +21,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: List files for debugging, excluding node_modules and vendor
+        run: |
+          echo "Listing files in the repository (excluding node_modules and vendor):"
+          find . -type f -not -path "./node_modules/*" -not -path "./vendor/*" -not -path "./.github/*" -not -path "./.git/*"
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -42,53 +47,3 @@ jobs:
       - name: Build assets
         run: npm run build
 
-      - name: Deploy via rsync
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
-          REMOTE_HOST: ${{ secrets.DEPLOY_HOST }}
-          REMOTE_USER: ${{ secrets.DEPLOY_USER }}
-          REMOTE_PATH: ${{ secrets.DEPLOY_PATH }}
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          printf '%s' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          printf '%s\n' "$KNOWN_HOSTS" >> ~/.ssh/known_hosts
-
-          # Validate REMOTE_PATH before running rsync with --delete
-          if [ -z "$REMOTE_PATH" ]; then
-            echo "Error: REMOTE_PATH is empty. Aborting deployment."
-            exit 1
-          fi
-
-          if [ "$REMOTE_PATH" = "/" ]; then
-            echo "Error: REMOTE_PATH cannot be '/'. Aborting deployment to avoid deleting root."
-            exit 1
-          fi
-
-          case "$REMOTE_PATH" in
-            /*) ;;
-            *)
-              echo "Error: REMOTE_PATH must be an absolute path (start with '/'). Aborting deployment."
-              exit 1
-              ;;
-          esac
-          rsync -az --delete \
-            --exclude='.git/' \
-            --exclude='.github/' \
-            --exclude='.claude/' \
-            --exclude='.gitignore' \
-            --exclude='node_modules/' \
-            --exclude='assets/js/' \
-            --exclude='assets/css/' \
-            --exclude='webpack.config.js' \
-            --exclude='package.json' \
-            --exclude='package-lock.json' \
-            --exclude='composer.json' \
-            --exclude='composer.lock' \
-            --exclude='CLAUDE.md' \
-            --exclude='CONTEXT.md' \
-            --exclude='README.md' \
-            -e "ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=~/.ssh/known_hosts" \
-            ./ "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH"
