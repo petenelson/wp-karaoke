@@ -1,0 +1,16 @@
+rsync-exclude.txt
+.git/
+.github/
+.claude/
+.gitignore
+node_modules/
+assets/js/
+assets/css/
+webpack.config.js
+package.json
+package-lock.json
+composer.json
+composer.lock
+CLAUDE.md
+CONTEXT.md
+README.md
