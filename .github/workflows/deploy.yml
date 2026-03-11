@@ -5,6 +5,8 @@ on:
     branches:
       - trunk
 
+permissions:
+  contents: read
 jobs:
   deploy:
     name: Build and Deploy
