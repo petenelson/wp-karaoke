@@ -74,6 +74,7 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          cat ~/.ssh/known_hosts
 
       - name: List remote files for debugging and verify SSH connection
         run: |
