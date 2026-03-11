@@ -65,7 +65,17 @@ jobs:
       - name: Build assets
         run: npm run build
 
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+
+      - name: Setup known hosts
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+
       - name: List remote files for debugging and verify SSH connection
         run: |
           echo "Listing files in the remote repository for debugging:"
-          ssh -o StrictHostKeyChecking=no ${{ secrets.REMOTE_USER }}@${{ secrets.REMOTE_HOST }} "ls -la ${{ secrets.REMOTE_PATH }}"
+          ssh -o ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "ls -la ${{ secrets.DEPLOY_PATH }}"
