@@ -23,43 +23,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # - name: Cached node_modules
-      #   uses: actions/cache@v5
-      #   with: 
-      #     path: node_modules
-      #     key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-node-
-
-      # - name: Cached vendor
-      #   uses: actions/cache@v5
-      #   with: 
-      #     path: vendor
-      #     key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-composer-
-
-      # - name: Set up Node.js
-      #   uses: actions/setup-node@v4
-      #   with:
-      #     node-version: 20.x
-      #     cache: npm
-
-      # - name: Set up PHP
-      #   uses: shivammathur/setup-php@v2
-      #   with:
-      #     php-version: '8.3'
-      #     tools: composer
-
-      # - name: Install PHP dependencies
-      #   run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
-
-      # - name: Install Node dependencies
-      #   run: npm ci
-
-      # - name: Build assets
-      #   run: npm run build
-
       - name: Setup SSH key
         uses: webfactory/ssh-agent@v0.5.4
         with:
@@ -81,3 +44,43 @@ jobs:
           ssh -o StrictHostKeyChecking=yes ${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }} "echo 'SSH connection successful!'"
           echo "Listing files in the remote directory for debugging:"
           ssh -o StrictHostKeyChecking=yes ${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }} "ls -la ${{ vars.DEPLOY_PATH }}"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer
+
+      - name: Cached node_modules
+        uses: actions/cache@v5
+        with: 
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Cached vendor
+        uses: actions/cache@v5
+        with: 
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install PHP dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build assets
+        run: |
+          npm run build
+          ls -la dist
+
