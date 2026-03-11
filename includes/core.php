@@ -11,8 +11,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use WPKQ\Blocks\Now_Playing_Block;
-
 /**
  * Class Core
  *

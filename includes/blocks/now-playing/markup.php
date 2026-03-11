@@ -9,7 +9,7 @@
  * @var WP_Block $block      Block instance.
  */
 
-use WPKQ\Blocks\Now_Playing_Block;
+use WPKQ\Blocks\NowPlaying;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -31,7 +31,7 @@ if ( ! $venue || 'karaoke-venue' !== $venue->post_type || 'publish' !== $venue->
 }
 
 $venue_slug  = $venue->post_name;
-$cookie_name = Now_Playing_Block::get_cookie_name( $venue_slug );
+$cookie_name = NowPlaying::get_cookie_name( $venue_slug );
 
 // Authorization: cookie value must equal md5( password ).
 $is_authorized = isset( $_COOKIE[ $cookie_name ] ) &&

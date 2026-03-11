@@ -9,6 +9,8 @@
  * @var WP_Block $block      Block instance.
  */
 
+use WPKQ\PostType\Venue;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -35,7 +37,7 @@ if ( ! $venue || 'karaoke-venue' !== $venue->post_type || 'publish' !== $venue->
 $venue_name   = get_the_title( $venue );
 $signup_url   = esc_url( rest_url( 'wpkq/v1/queue/signup' ) );
 $venue_slug   = esc_attr( $venue->post_name );
-$signups_open = (bool) get_post_meta( $venue->ID, \WPKQ\Post_Type\Venue_Post_Type::SIGNUPS_META_KEY, true );
+$signups_open = (bool) get_post_meta( $venue->ID, Venue::SIGNUPS_META_KEY, true );
 $disabled     = $signups_open ? '' : 'disabled';
 ?>
 <div
