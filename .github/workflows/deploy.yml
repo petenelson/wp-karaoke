@@ -71,9 +71,10 @@ jobs:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
 
       - name: Setup known hosts
+        env:
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          echo "${{ env.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
           cat ~/.ssh/known_hosts
 
       - name: List remote files for debugging and verify SSH connection
