@@ -73,7 +73,7 @@ class NowPlaying {
 	 * Register the block type from block.json.
 	 */
 	public function register_block() {
-		register_block_type( WPKQ_PLUGIN_DIR . 'includes/blocks/now-playing/' );
+		register_block_type( WPKQ_PLUGIN_DIR . 'includes/Blocks/now-playing/' );
 	}
 
 	/**
