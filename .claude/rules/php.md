@@ -12,6 +12,7 @@ paths:
 * When reading `$_POST`, `$_GET`, or `$_REQUEST` variables, always use `filter_var_array()` with appropriate filter constants and validation rules.
 * Refer to [10up's PHP Engineering Best Practices](https://10up.github.io/Engineering-Best-Practices/php/) for any other PHP-related decisions.
 * Classes will be use the singleton pattern, with an `instance()` method to get the instance.
+* Classes will be autoloaded using Composer's PSR-4 autoloader, with the `WPKQ` namespace mapped to the `includes/` directory.
 * Decode JSON to arrays, not objects by default.
 * Functions will use type declarations where possible, and return types where possible. Example:
 ```php
