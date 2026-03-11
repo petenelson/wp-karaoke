@@ -18,7 +18,7 @@ jobs:
       cancel-in-progress: false
 
     steps:
-      - name: Checkout code with case-sensitive file system
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -78,6 +78,11 @@ jobs:
           cat ~/.ssh/known_hosts
 
       - name: List remote files for debugging and verify SSH connection
+        env:
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
           echo "Listing files in the remote repository for debugging:"
           ssh -o ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "ls -la ${{ secrets.DEPLOY_PATH }}"
+          
