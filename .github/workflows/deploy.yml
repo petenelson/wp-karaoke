@@ -90,5 +90,5 @@ jobs:
             --exclude='CLAUDE.md' \
             --exclude='CONTEXT.md' \
             --exclude='README.md' \
-            -e "ssh -i ~/.ssh/deploy_key" \
+            -e "ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=~/.ssh/known_hosts" \
             ./ "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH"
