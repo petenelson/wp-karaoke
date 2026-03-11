@@ -277,7 +277,7 @@ class Queue {
 	 */
 	public function add_singer( \WP_REST_Request $request ) {
 		$slug   = $request->get_param( 'slug' );
-		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+		$result = Venue::get_queue_by_slug( $slug );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
@@ -288,7 +288,7 @@ class Queue {
 		$new_singer = $this->sanitize_singer( $request->get_params() );
 		$queue[]    = $new_singer;
 
-		$saved = Venue_Post_Type::save_queue( $post_id, $queue );
+		$saved = Venue::save_queue( $post_id, $queue );
 
 		if ( false === $saved ) {
 			return new \WP_Error(
@@ -313,7 +313,7 @@ class Queue {
 	public function update_singer( \WP_REST_Request $request ) {
 		$slug   = $request->get_param( 'slug' );
 		$id     = preg_replace( '/[^A-Za-z0-9]/', '', (string) $request->get_param( 'id' ) );
-		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+		$result = Venue::get_queue_by_slug( $slug );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
@@ -381,7 +381,7 @@ class Queue {
 			unset( $singer );
 		}
 
-		$saved = Venue_Post_Type::save_queue( $post_id, $queue );
+		$saved = Venue::save_queue( $post_id, $queue );
 
 		if ( false === $saved ) {
 			return new \WP_Error(
@@ -405,7 +405,7 @@ class Queue {
 	public function delete_singer( \WP_REST_Request $request ) {
 		$slug   = $request->get_param( 'slug' );
 		$id     = preg_replace( '/[^A-Za-z0-9]/', '', (string) $request->get_param( 'id' ) );
-		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+		$result = Venue::get_queue_by_slug( $slug );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
@@ -432,7 +432,7 @@ class Queue {
 			);
 		}
 
-		$saved = Venue_Post_Type::save_queue( $post_id, $queue );
+		$saved = Venue::save_queue( $post_id, $queue );
 
 		if ( false === $saved ) {
 			return new \WP_Error(
@@ -456,7 +456,7 @@ class Queue {
 	public function reorder_queue( \WP_REST_Request $request ) {
 		$slug   = $request->get_param( 'slug' );
 		$order  = $request->get_param( 'order' );
-		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+		$result = Venue::get_queue_by_slug( $slug );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
@@ -506,7 +506,7 @@ class Queue {
 		}
 
 		$new_queue = array_merge( $others, $reordered );
-		$saved     = Venue_Post_Type::save_queue( $post_id, $new_queue );
+		$saved     = Venue::save_queue( $post_id, $new_queue );
 
 		if ( false === $saved ) {
 			return new \WP_Error(
@@ -529,13 +529,13 @@ class Queue {
 	 */
 	public function reset_queue( \WP_REST_Request $request ) {
 		$slug   = $request->get_param( 'slug' );
-		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+		$result = Venue::get_queue_by_slug( $slug );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
 
-		$saved = Venue_Post_Type::save_queue( $result['post_id'], [] );
+		$saved = Venue::save_queue( $result['post_id'], [] );
 
 		if ( false === $saved ) {
 			return new \WP_Error(
@@ -664,7 +664,7 @@ class Queue {
 	 */
 	public function signup_singer( \WP_REST_Request $request ) {
 		$slug   = $request->get_param( 'slug' );
-		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+		$result = Venue::get_queue_by_slug( $slug );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
@@ -693,7 +693,7 @@ class Queue {
 		}
 
 		$queue[] = $new_singer;
-		$saved   = Venue_Post_Type::save_queue( $post_id, $queue );
+		$saved   = Venue::save_queue( $post_id, $queue );
 
 		if ( false === $saved ) {
 			return new \WP_Error(
@@ -717,7 +717,7 @@ class Queue {
 	public function advance_singer( \WP_REST_Request $request ) {
 		$slug   = $request->get_param( 'slug' );
 		$id     = preg_replace( '/[^A-Za-z0-9]/', '', (string) $request->get_param( 'id' ) );
-		$result = Venue_Post_Type::get_queue_by_slug( $slug );
+		$result = Venue::get_queue_by_slug( $slug );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
@@ -747,7 +747,7 @@ class Queue {
 			);
 		}
 
-		Venue_Post_Type::save_queue( $post_id, $queue );
+		Venue::save_queue( $post_id, $queue );
 
 		return $this->get_queue( $request );
 	}

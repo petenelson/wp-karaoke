@@ -314,7 +314,7 @@ class Venue {
 	 * @return void
 	 */
 	public function register_rewrite_rules() {
-		// add_rewrite_rule( '^karaoke/([^/]+)/?$', 'index.php?post_type=karaoke-venue&name=$matches[1]', 'top' );
+		add_rewrite_rule( '^karaoke/([^/]+)/?$', 'index.php?post_type=karaoke-venue&name=$matches[1]', 'top' );
 
 		// Add one for the karaoke-venue and karaoke-page.
 		add_rewrite_rule( '^karaoke/([^/]+)/([^/]+)/?$', 'index.php?karaoke-venue=$matches[1]&karaoke-page=$matches[2]', 'top' );
