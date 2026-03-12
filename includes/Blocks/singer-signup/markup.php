@@ -61,7 +61,7 @@ $disabled     = $signups_open ? '' : 'disabled';
 				type="text"
 				id="wpkq-signup-name"
 				name="singer_name"
-				maxlength="50"
+				maxlength="30"
 				required
 			/>
 		</div>

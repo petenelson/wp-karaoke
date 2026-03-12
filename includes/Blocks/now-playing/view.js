@@ -136,9 +136,11 @@ const NowPlayingBlock = {
 		const visible = inQueue.slice( 0, NowPlayingBlock.TICKER_QUEUE_LIMIT );
 		const overflow = inQueue.length - visible.length;
 
+		// For the first singer after the on-stage performer, show "Up Next: " prefix.
+		let upNextShown = false;
 		const items = [ ...onStage, ...visible ].map( ( singer ) => {
 			const isOnStage  = singer.status === 'on-stage';
-			const prefix     = isOnStage ? 'On Stage: ' : '';
+			const prefix     = isOnStage ? 'On Stage: ' : ( !upNextShown ? ( upNextShown = true, 'Up Next: ' ) : '' );
 			const name       = singer.singer_name || '';
 			const singerId   = singer.id || '';
 			const youtubeUrl = isOnStage ? '' : ( singer.youtube_url || '' );
