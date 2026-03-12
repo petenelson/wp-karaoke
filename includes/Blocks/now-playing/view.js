@@ -296,6 +296,14 @@ const NowPlayingBlock = {
 					}
 				}
 				break;
+
+			case 'load-video': {
+				const videoId = NowPlayingBlock.parseVideoId( action.url || '' );
+				if ( videoId ) {
+					NowPlayingBlock.loadVideo( videoId );
+				}
+				break;
+			}
 		}
 	},
 

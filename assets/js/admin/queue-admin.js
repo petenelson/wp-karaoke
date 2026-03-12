@@ -57,6 +57,8 @@ const WPKQAmin = () => {
 		refreshBtn:       document.getElementById( 'wpkq-refresh-btn' ),
 		resetQueueBtn:    document.getElementById( 'wpkq-reset-queue-btn' ),
 		playbackBtn:      document.getElementById( 'wpkq-playback-btn' ),
+		urlForm:          document.getElementById( 'wpkq-url-form' ),
+		urlInput:         document.getElementById( 'wpkq-url-input' ),
 
 		// On Stage section
 		onStageSection:   document.getElementById( 'wpkq-on-stage-section' ),
@@ -291,12 +293,13 @@ const WPKQAmin = () => {
 	 * @param {string} singerId  Singer ID the action relates to.
 	 * @return {Promise<void>}
 	 */
-	async function postAction( action, singerId ) {
+	async function postAction( action, singerId, url = '' ) {
 		try {
 			await apiRequest( 'POST', actionsApiBase, {
 				slug:      venueSlug,
 				action:    action,
 				singer_id: singerId,
+				url:       url,
 			} );
 		} catch ( err ) {
 			console.error( 'WPKQ: Failed to post action.', err );
@@ -1073,6 +1076,20 @@ const WPKQAmin = () => {
 
 		// Play/Pause button.
 		el.playbackBtn.addEventListener( 'click', () => postAction( 'toggle-playback', '' ) );
+
+		// Load video URL form.
+		el.urlForm.addEventListener( 'submit', ( e ) => {
+			e.preventDefault();
+			const videoId = parseVideoId( el.urlInput.value );
+			if ( ! videoId ) {
+				el.urlInput.classList.add( 'wpkq-url-input--error' );
+				setTimeout( () => el.urlInput.classList.remove( 'wpkq-url-input--error' ), 1500 );
+				return;
+			}
+			postAction( 'load-video', '', el.urlInput.value.trim() );
+			el.urlInput.value = '';
+			el.urlInput.blur();
+		} );
 
 		// Reset queue button.
 		el.resetQueueBtn.addEventListener( 'click', function () {

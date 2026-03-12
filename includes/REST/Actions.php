@@ -103,6 +103,12 @@ class Actions {
 								'type'        => 'string',
 								'description' => __( 'Singer ID the action relates to.', 'wp-karaoke' ),
 							],
+							'url'       => [
+								'required'          => false,
+								'type'              => 'string',
+								'sanitize_callback' => 'sanitize_url',
+								'description'       => __( 'URL payload for the action, e.g. a YouTube URL.', 'wp-karaoke' ),
+							],
 						]
 					),
 				],
@@ -156,10 +162,13 @@ class Actions {
 		$action    = $request->get_param( 'action' );
 		$singer_id = preg_replace( '/[^A-Za-z0-9]/', '', (string) ( $request->get_param( 'singer_id' ) ?? '' ) );
 
+		$url        = esc_url_raw( (string) ( $request->get_param( 'url' ) ?? '' ) );
+
 		$new_action = [
 			'id'        => wp_generate_password( 10, false, false ),
 			'action'    => $action,
 			'singer_id' => $singer_id,
+			'url'       => $url,
 		];
 
 		$actions   = $this->read_actions( $slug );
