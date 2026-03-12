@@ -174,6 +174,19 @@ class QueueAdmin {
 					?>
 				</h1>
 				<div class="wpkq-header-right">
+					<form class="wpkq-url-form" id="wpkq-url-form" novalidate>
+						<input
+							type="text"
+							id="wpkq-url-input"
+							class="wpkq-url-input"
+							placeholder="<?php esc_attr_e( 'Paste YouTube URL...', 'wp-karaoke' ); ?>"
+							autocomplete="off"
+							spellcheck="false"
+						>
+						<button type="submit" class="wpkq-btn wpkq-btn--primary">
+							<?php esc_html_e( 'Load', 'wp-karaoke' ); ?>
+						</button>
+					</form>
 					<button class="wpkq-btn wpkq-btn--primary wpkq-btn--add-singer" id="wpkq-add-singer-btn">
 						+ <?php esc_html_e( 'Add Singer', 'wp-karaoke' ); ?>
 					</button>
