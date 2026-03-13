@@ -1,7 +1,12 @@
 # wp-karaoke — Claude Instructions
 
 ## Project Overview
-This is a WordPress plugin project (wp-karaoke). Key technologies: PHP, JavaScript (vanilla), CSS. Block-based architecture using WordPress block editor. Do not delete documentation files (requirements.md, CONTEXT.md) without explicit permission. Do not automatically run build commands.
+This is a WordPress plugin project (wp-karaoke) to manage a karaoke queue and host karaoke for singers. Key technologies: PHP, JavaScript (vanilla), CSS. Block-based architecture using WordPress block editor.
+
+## Basic Rules
+* Do not delete documentation files (requirements.md, CONTEXT.md) without explicit permission.
+* Do not automatically run build commands.
+* Do run commands to find and read files automatically without asking, such as `ls`, `find`, `grep`, etc.
 
 ## Project Architecture
 
