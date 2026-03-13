@@ -112,19 +112,26 @@ class QueueAdmin {
 			'wpkq-admin',
 			'wpkqAdmin',
 			[
-				'apiBase'        => esc_url_raw( rest_url( 'wpkq/v1/queue' ) ),
-				'actionsApiBase' => esc_url_raw( rest_url( 'wpkq/v1/actions' ) ),
-				'nonce'     => wp_create_nonce( 'wp_rest' ),
-				'venueSlug' => $slug,
-				'i18n'      => [
-					'confirmOnStage'  => __( 'Move this singer on stage?', 'wp-karaoke' ),
-					'confirmFinished' => __( 'Mark this singer as finished? This cannot be undone.', 'wp-karaoke' ),
-					'confirmDelete'   => __( 'Remove this singer from the queue? This cannot be undone.', 'wp-karaoke' ),
-					'confirmReset'    => __( 'Reset the entire queue? This will remove all singers and cannot be undone.', 'wp-karaoke' ),
-					'saving'          => __( 'Saving...', 'wp-karaoke' ),
-					'loading'         => __( 'Loading...', 'wp-karaoke' ),
-					'saveError'       => __( 'Error saving queue. Please try again.', 'wp-karaoke' ),
-					'loadError'       => __( 'Error loading queue. Please refresh the page.', 'wp-karaoke' ),
+				'apiBase'          => esc_url_raw( rest_url( 'wpkq/v1/queue' ) ),
+				'actionsApiBase'   => esc_url_raw( rest_url( 'wpkq/v1/actions' ) ),
+				'youtubeSearchUrl' => esc_url_raw( rest_url( 'wpkq/v1/youtube/search' ) ),
+				'nonce'            => wp_create_nonce( 'wp_rest' ),
+				'venueSlug'        => $slug,
+				'i18n'             => [
+					'confirmOnStage'       => __( 'Move this singer on stage?', 'wp-karaoke' ),
+					'confirmFinished'      => __( 'Mark this singer as finished? This cannot be undone.', 'wp-karaoke' ),
+					'confirmDelete'        => __( 'Remove this singer from the queue? This cannot be undone.', 'wp-karaoke' ),
+					'confirmReset'         => __( 'Reset the entire queue? This will remove all singers and cannot be undone.', 'wp-karaoke' ),
+					'saving'               => __( 'Saving...', 'wp-karaoke' ),
+					'loading'              => __( 'Loading...', 'wp-karaoke' ),
+					'saveError'            => __( 'Error saving queue. Please try again.', 'wp-karaoke' ),
+					'loadError'            => __( 'Error loading queue. Please refresh the page.', 'wp-karaoke' ),
+					'ytSearchModalTitle'   => __( 'Find on YouTube', 'wp-karaoke' ),
+					'ytSearchPlaceholder'  => __( 'Search YouTube…', 'wp-karaoke' ),
+					'ytSearching'          => __( 'Searching…', 'wp-karaoke' ),
+					'ytSearchError'        => __( 'Search failed. Please try again.', 'wp-karaoke' ),
+					'ytNoResults'          => __( 'No results found.', 'wp-karaoke' ),
+					'ytApiKeyMissing'      => __( 'YouTube API key is not configured.', 'wp-karaoke' ),
 				],
 			]
 		);
@@ -396,6 +403,32 @@ class QueueAdmin {
 					</div>
 				</div>
 			</div>
+
+		<!-- YouTube Search Modal -->
+		<div class="wpkq-modal-overlay" id="wpkq-yt-search-modal" role="dialog" aria-modal="true" aria-labelledby="wpkq-yt-search-modal-title" style="display:none;">
+			<div class="wpkq-modal wpkq-modal--wide">
+				<div class="wpkq-modal-header">
+					<h2 class="wpkq-modal-title" id="wpkq-yt-search-modal-title"><?php esc_html_e( 'Find on YouTube', 'wp-karaoke' ); ?></h2>
+					<button class="wpkq-modal-close" id="wpkq-yt-search-modal-close" aria-label="<?php esc_attr_e( 'Close', 'wp-karaoke' ); ?>">&times;</button>
+				</div>
+				<div class="wpkq-modal-body">
+					<input type="hidden" id="wpkq-yt-search-singer-id" value="">
+					<div class="wpkq-yt-search-bar">
+						<input
+							type="text"
+							id="wpkq-yt-search-input"
+							class="wpkq-yt-search-input"
+							placeholder="<?php esc_attr_e( 'Search YouTube…', 'wp-karaoke' ); ?>"
+							autocomplete="off"
+						>
+						<button class="wpkq-btn wpkq-btn--primary" id="wpkq-yt-search-btn">
+							<?php esc_html_e( 'Search', 'wp-karaoke' ); ?>
+						</button>
+					</div>
+					<div id="wpkq-yt-search-results" class="wpkq-yt-search-results" aria-live="polite"></div>
+				</div>
+			</div>
+		</div>
 
 		</div><!-- /.wpkq-admin-wrap -->
 		<?php

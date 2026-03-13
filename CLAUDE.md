@@ -6,7 +6,7 @@ This is a WordPress plugin project (wp-karaoke) to manage a karaoke queue and ho
 ## Basic Rules
 * Do not delete documentation files (requirements.md, CONTEXT.md) without explicit permission.
 * Do not automatically run build commands.
-* Do run commands to find and read files automatically without asking, such as `ls`, `find`, `grep`, etc.
+* Always use the Read tool instead of `cat`, Glob instead of `ls`/`find`,and Grep instead of `grep`. Never use Bash for file scanning unless absolutely necessary.
 
 ## Project Architecture
 

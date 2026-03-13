@@ -195,7 +195,7 @@
 
 .wpkq-monitor__ticker-wrap {
 	flex-shrink: 0;
-	height: 64px;
+	height: 100px;
 	background: #111;
 	overflow: hidden;
 }
@@ -236,7 +236,7 @@
 	background: #333;
 	color: #fff;
 	border-radius: 4px;
-	font-size: 1.4em;
+	font-size: 2em;
 	font-family: sans-serif;
 	user-select: none;
 }

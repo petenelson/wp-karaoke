@@ -77,9 +77,17 @@ const WPKQAmin = () => {
 
 		// Edit modal — YouTube URL
 		editYoutubeUrl:  document.getElementById( 'wpkq-edit-youtube-url' ),
+
+		// YouTube Search modal
+		ytSearchModal:    document.getElementById( 'wpkq-yt-search-modal' ),
+		ytSearchClose:    document.getElementById( 'wpkq-yt-search-modal-close' ),
+		ytSearchInput:    document.getElementById( 'wpkq-yt-search-input' ),
+		ytSearchBtn:      document.getElementById( 'wpkq-yt-search-btn' ),
+		ytSearchResults:  document.getElementById( 'wpkq-yt-search-results' ),
+		ytSearchSingerId: document.getElementById( 'wpkq-yt-search-singer-id' ),
 	};
 
-	const { apiBase, nonce, venueSlug, actionsApiBase, i18n } = wpkqAdmin;
+	const { apiBase, nonce, venueSlug, actionsApiBase, youtubeSearchUrl, i18n } = wpkqAdmin;
 
 	const singerApiBase = apiBase + '/singer';
 	const reorderApiUrl = apiBase + '/reorder';
@@ -601,8 +609,7 @@ const WPKQAmin = () => {
 	}
 
 	/**
-	 * Render a singer's song title as a YouTube search link.
-	 * Opens a pre-populated search for "artist song" in a new tab.
+	 * Render a singer's song title as a button that opens the YouTube search modal.
 	 *
 	 * @param {Object} singer Singer record.
 	 * @return {string} HTML string.
@@ -612,10 +619,137 @@ const WPKQAmin = () => {
 			return '—';
 		}
 
-		const query = [ 'karaoke', singer.artist, singer.song ].filter( Boolean ).join( ' ' );
-		const url   = 'https://www.youtube.com/results?search_query=' + encodeURIComponent( query );
+		return `<a href="#" class="wpkq-song-link wpkq-yt-search-trigger" data-singer-id="${ escHtml( singer.id ) }">${ escHtml( singer.song ) }</a>`;
+	}
 
-		return `<a href="${ escHtml( url ) }" target="_blank" rel="noopener noreferrer" class="wpkq-song-link">${ escHtml( singer.song ) }</a>`;
+	// ─── YouTube Search Modal ─────────────────────────────────────────────────
+
+	/**
+	 * Open the YouTube search modal for a given singer ID.
+	 * Pre-fills the search query and immediately runs the search.
+	 *
+	 * @param {string} singerId Singer ID.
+	 */
+	function openYtSearchModal( singerId ) {
+		const singer = queue.find( ( s ) => s.id === singerId );
+
+		if ( ! singer ) {
+			return;
+		}
+
+		const query = [ 'karaoke', singer.artist, singer.song ].filter( Boolean ).join( ' ' );
+
+		el.ytSearchSingerId.value = singerId;
+		el.ytSearchInput.value    = query;
+		el.ytSearchResults.innerHTML = '';
+
+		el.ytSearchModal.style.display = '';
+		el.ytSearchModal.removeAttribute( 'hidden' );
+		el.ytSearchInput.focus();
+
+		runYtSearch();
+	}
+
+	/**
+	 * Close the YouTube search modal.
+	 */
+	function closeYtSearchModal() {
+		el.ytSearchModal.style.display = 'none';
+	}
+
+	/**
+	 * Run a YouTube search using the current value of the search input.
+	 *
+	 * @return {Promise<void>}
+	 */
+	async function runYtSearch() {
+		const query = el.ytSearchInput.value.trim();
+
+		if ( ! query ) {
+			return;
+		}
+
+		el.ytSearchResults.innerHTML = `<p class="wpkq-yt-search-status">${ escHtml( i18n.ytSearching ) }</p>`;
+
+		try {
+			const url      = youtubeSearchUrl + '?q=' + encodeURIComponent( query );
+			const response = await fetch( url, {
+				headers: { 'X-WP-Nonce': nonce },
+			} );
+
+			const data = await response.json();
+
+			if ( ! response.ok ) {
+				const message = ( 501 === response.status )
+					? i18n.ytApiKeyMissing
+					: ( data.message || i18n.ytSearchError );
+				el.ytSearchResults.innerHTML = `<p class="wpkq-yt-search-status wpkq-yt-search-status--error">${ escHtml( message ) }</p>`;
+				return;
+			}
+
+			renderYtResults( data.results || [] );
+		} catch ( err ) {
+			el.ytSearchResults.innerHTML = `<p class="wpkq-yt-search-status wpkq-yt-search-status--error">${ escHtml( i18n.ytSearchError ) }</p>`;
+			console.error( 'WPKQ YouTube search error:', err );
+		}
+	}
+
+	/**
+	 * Render YouTube search result cards into the results container.
+	 *
+	 * @param {Array} results Array of { videoId, title, thumbnail } objects.
+	 */
+	function renderYtResults( results ) {
+		if ( ! results.length ) {
+			el.ytSearchResults.innerHTML = `<p class="wpkq-yt-search-status">${ escHtml( i18n.ytNoResults ) }</p>`;
+			return;
+		}
+
+		const html = results.map( ( result ) => `
+			<button
+				class="wpkq-yt-result"
+				data-video-id="${ escHtml( result.videoId ) }"
+				type="button"
+			>
+				<img
+					class="wpkq-yt-result-thumb"
+					src="${ escHtml( result.thumbnail ) }"
+					alt=""
+					aria-hidden="true"
+					width="120"
+					height="90"
+					loading="lazy"
+				>
+				<span class="wpkq-yt-result-title">${ escHtml( result.title ) }</span>
+			</button>
+		` ).join( '' );
+
+		el.ytSearchResults.innerHTML = html;
+	}
+
+	/**
+	 * Handle a KJ selecting a YouTube search result.
+	 * Updates the singer's YouTube URL and closes the modal.
+	 *
+	 * @param {string} videoId YouTube video ID.
+	 * @return {Promise<void>}
+	 */
+	async function selectYtResult( videoId ) {
+		const singerId = el.ytSearchSingerId.value;
+
+		if ( ! singerId || ! videoId ) {
+			return;
+		}
+
+		const youtubeUrl = 'https://www.youtube.com/watch?v=' + videoId;
+
+		closeYtSearchModal();
+
+		checkingIds.add( singerId );
+		renderAll();
+
+		await updateSinger( singerId, { youtube_url: youtubeUrl, youtube_playable: null } );
+		checkYouTubePlayability( singerId, youtubeUrl );
 	}
 
 	/**
@@ -1135,6 +1269,38 @@ const WPKQAmin = () => {
 			}
 		} );
 
+		// YouTube Search modal.
+		document.addEventListener( 'click', function ( e ) {
+			const trigger = e.target.closest( '.wpkq-yt-search-trigger' );
+			if ( trigger ) {
+				e.preventDefault();
+				openYtSearchModal( trigger.dataset.singerId );
+			}
+		} );
+
+		el.ytSearchClose.addEventListener( 'click', closeYtSearchModal );
+
+		el.ytSearchModal.addEventListener( 'click', function ( e ) {
+			if ( e.target === el.ytSearchModal ) {
+				closeYtSearchModal();
+			}
+		} );
+
+		el.ytSearchBtn.addEventListener( 'click', runYtSearch );
+
+		el.ytSearchInput.addEventListener( 'keydown', function ( e ) {
+			if ( 'Enter' === e.key ) {
+				runYtSearch();
+			}
+		} );
+
+		el.ytSearchResults.addEventListener( 'click', function ( e ) {
+			const resultBtn = e.target.closest( '.wpkq-yt-result' );
+			if ( resultBtn ) {
+				selectYtResult( resultBtn.dataset.videoId );
+			}
+		} );
+
 		// Close modals on Escape key.
 		document.addEventListener( 'keydown', function ( e ) {
 			if ( 'Escape' === e.key ) {
@@ -1143,6 +1309,9 @@ const WPKQAmin = () => {
 				}
 				if ( el.addModal.style.display !== 'none' ) {
 					closeAddModal();
+				}
+				if ( el.ytSearchModal.style.display !== 'none' ) {
+					closeYtSearchModal();
 				}
 			}
 		} );
