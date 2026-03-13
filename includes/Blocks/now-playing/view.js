@@ -96,6 +96,9 @@ const NowPlayingBlock = {
 	/** Maximum number of in-the-queue singers shown in the ticker (excluding on-stage). */
 	TICKER_QUEUE_LIMIT: 6,
 
+	/** @type {boolean} True while a queue fetch is in-flight; prevents concurrent requests. */
+	isFetchingQueue: false,
+
 	/**
 	 * Build a placeholder ticker item for an empty queue.
 	 *
@@ -224,10 +227,17 @@ const NowPlayingBlock = {
 	 * @param {Function} callback Receives an array of singer objects.
 	 */
 	fetchQueue: ( restUrl, callback ) => {
+		if ( NowPlayingBlock.isFetchingQueue ) {
+			return;
+		}
+		NowPlayingBlock.isFetchingQueue = true;
 		fetch( restUrl )
 			.then( ( res ) => res.json() )
 			.then( ( data ) => callback( data.queue || [] ) )
-			.catch( () => callback( [] ) );
+			.catch( () => callback( [] ) )
+			.finally( () => {
+				NowPlayingBlock.isFetchingQueue = false;
+			} );
 	},
 
 	/**
@@ -239,8 +249,8 @@ const NowPlayingBlock = {
 	 */
 	startActionPolling: ( actionsUrl, venueSlug, tickerInner ) => {
 		const poll = () => {
-			NowPlayingBlock.fetchActions( actionsUrl, venueSlug, tickerInner );
-			setTimeout( poll, 1000 );
+			NowPlayingBlock.fetchActions( actionsUrl, venueSlug, tickerInner )
+				.finally( () => setTimeout( poll, 1000 ) );
 		};
 		setTimeout( poll, 1000 );
 	},
@@ -252,15 +262,14 @@ const NowPlayingBlock = {
 	 * @param {string}      venueSlug   Venue slug.
 	 * @param {HTMLElement} tickerInner Ticker inner element.
 	 */
-	fetchActions: ( actionsUrl, venueSlug, tickerInner ) => {
-		fetch( `${ actionsUrl }?slug=${ encodeURIComponent( venueSlug ) }` )
-			.then( ( res ) => res.json() )
-			.then( ( data ) => {
-				( data.actions || [] ).forEach( ( action ) => {
-					NowPlayingBlock.handleAction( action, actionsUrl, venueSlug, tickerInner );
-				} );
-			} )
-			.catch( () => {} );
+	fetchActions: async ( actionsUrl, venueSlug, tickerInner ) => {
+		try {
+			const res  = await fetch( `${ actionsUrl }?slug=${ encodeURIComponent( venueSlug ) }` );
+			const data = await res.json();
+			( data.actions || [] ).forEach( ( action ) => {
+				NowPlayingBlock.handleAction( action, actionsUrl, venueSlug, tickerInner );
+			} );
+		} catch ( e ) {}
 	},
 
 	/**
