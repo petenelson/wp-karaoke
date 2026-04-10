@@ -53,7 +53,7 @@ $disabled     = $signups_open ? '' : 'disabled';
 	<form class="wpkq-signup__form" novalidate>
 		<div class="wpkq-signup__field">
 			<label class="wpkq-signup__label" for="wpkq-signup-name">
-				<?php esc_html_e( 'Your Name', 'wp-karaoke' ); ?>
+				<?php esc_html_e( 'Your Name. First Name or Stage Name', 'wp-karaoke' ); ?>
 				<span class="wpkq-signup__required" aria-hidden="true">*</span>
 			</label>
 			<input
