@@ -161,7 +161,7 @@ const NowPlayingBlock = {
 				span.classList.add( 'wpkq-monitor__ticker-item--playable' );
 			}
 
-			span.textContent = prefix + name;
+			span.textContent = prefix + name + ( singer.emoji ? ' ' + singer.emoji : '' );
 			return span;
 		} );
 

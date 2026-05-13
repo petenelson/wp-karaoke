@@ -36,6 +36,13 @@ class Queue {
 	const ROUTE = '/queue';
 
 	/**
+	 * Emoji values singers are allowed to choose.
+	 *
+	 * @var string[]
+	 */
+	const ALLOWED_EMOJIS = [ '🎤', '🎂', '🎉', '⭐', '🔥', '🥳', '🎵' ];
+
+	/**
 	 * Singleton instance.
 	 *
 	 * @var self|null
@@ -166,6 +173,10 @@ class Queue {
 							'type'              => 'string',
 							'sanitize_callback' => 'sanitize_text_field',
 						],
+						'emoji'       => [
+							'required' => false,
+							'type'     => 'string',
+						],
 					]
 				),
 			]
@@ -240,6 +251,7 @@ class Queue {
 					'singer_name' => $singer['singer_name'],
 					'youtube_url' => $singer['youtube_url'] ?? '',
 					'status'      => $singer['status'],
+					'emoji'       => $singer['emoji'] ?? '',
 				];
 			}
 		}
@@ -352,6 +364,9 @@ class Queue {
 			if ( null !== $request->get_param( 'completed_time' ) ) {
 				$singer['completed_time'] = absint( $request->get_param( 'completed_time' ) );
 			}
+			if ( null !== $request->get_param( 'emoji' ) ) {
+				$singer['emoji'] = $this->sanitize_emoji( (string) $request->get_param( 'emoji' ) );
+			}
 			if ( null !== $request->get_param( 'status' ) ) {
 				$status_param = $request->get_param( 'status' );
 				if ( in_array( $status_param, $valid_statuses, true ) ) {
@@ -391,6 +406,9 @@ class Queue {
 				}
 				if ( null !== $request->get_param( 'completed_time' ) ) {
 					$new_singer['completed_time'] = absint( $request->get_param( 'completed_time' ) );
+				}
+				if ( null !== $request->get_param( 'emoji' ) ) {
+					$new_singer['emoji'] = $this->sanitize_emoji( (string) $request->get_param( 'emoji' ) );
 				}
 				if ( null !== $request->get_param( 'status' ) ) {
 					$status_param = $request->get_param( 'status' );
@@ -614,6 +632,16 @@ class Queue {
 	}
 
 	/**
+	 * Return $emoji if it is in the allowed list, otherwise empty string.
+	 *
+	 * @param string $emoji Candidate emoji.
+	 * @return string
+	 */
+	private function sanitize_emoji( string $emoji ): string {
+		return in_array( $emoji, self::ALLOWED_EMOJIS, true ) ? $emoji : '';
+	}
+
+	/**
 	 * Normalize Unicode apostrophes to plain ASCII apostrophes.
 	 *
 	 * Mobile keyboards (e.g. iOS) insert U+2019 instead of a plain apostrophe.
@@ -651,6 +679,7 @@ class Queue {
 			'singer_name'      => isset( $singer['singer_name'] ) ? $this->normalize_apostrophes( substr( sanitize_text_field( $singer['singer_name'] ), 0, 50 ) ) : '',
 			'song'             => isset( $singer['song'] ) ? $this->normalize_apostrophes( substr( sanitize_text_field( $singer['song'] ), 0, 50 ) ) : '',
 			'artist'           => isset( $singer['artist'] ) ? $this->normalize_apostrophes( substr( sanitize_text_field( $singer['artist'] ), 0, 50 ) ) : '',
+			'emoji'            => isset( $singer['emoji'] ) ? $this->sanitize_emoji( (string) $singer['emoji'] ) : '',
 			'youtube_url'      => isset( $singer['youtube_url'] ) ? esc_url_raw( $singer['youtube_url'] ) : '',
 			'youtube_playable' => $youtube_playable,
 			'signup_time'      => isset( $singer['signup_time'] ) ? absint( $singer['signup_time'] ) : 0,
@@ -759,6 +788,7 @@ class Queue {
 			'singer_name'    => $this->normalize_apostrophes( substr( sanitize_text_field( $request->get_param( 'singer_name' ) ?? '' ), 0, 50 ) ),
 			'song'           => $this->normalize_apostrophes( substr( sanitize_text_field( $request->get_param( 'song' ) ?? '' ), 0, 50 ) ),
 			'artist'         => $this->normalize_apostrophes( substr( sanitize_text_field( $request->get_param( 'artist' ) ?? '' ), 0, 50 ) ),
+			'emoji'          => $this->sanitize_emoji( (string) ( $request->get_param( 'emoji' ) ?? '' ) ),
 			'youtube_url'    => '',
 			'signup_time'    => time(),
 			'completed_time' => 0,

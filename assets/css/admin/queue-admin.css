@@ -550,6 +550,64 @@
 	border-top: 1px solid var( --wpkq-border );
 }
 
+/* ─── Emoji Picker ───────────────────────────────────────────────────────────── */
+.wpkq-field-optional {
+	font-weight: 400;
+	color: var( --wpkq-text-muted );
+	text-transform: none;
+	letter-spacing: 0;
+	font-size: 0.8rem;
+}
+
+.wpkq-emoji-picker {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.wpkq-emoji-opt {
+	position: relative;
+}
+
+.wpkq-emoji-radio {
+	position: absolute;
+	opacity: 0;
+	width: 0;
+	height: 0;
+	pointer-events: none;
+}
+
+.wpkq-emoji-label {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	font-size: 1.4rem;
+	border: 2px solid var( --wpkq-border );
+	border-radius: 8px;
+	cursor: pointer;
+	background: var( --wpkq-surface );
+	transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+	user-select: none;
+	line-height: 1;
+	margin: 0;
+	text-transform: none;
+	letter-spacing: 0;
+	font-weight: normal;
+}
+
+.wpkq-emoji-radio:checked + .wpkq-emoji-label {
+	border-color: var( --wpkq-primary );
+	background: #f0ebff;
+	box-shadow: 0 0 0 3px rgba( 124, 58, 237, 0.15 );
+}
+
+.wpkq-emoji-label:hover {
+	border-color: var( --wpkq-primary );
+	background: var( --wpkq-surface-2 );
+}
+
 /* ─── Song Link ──────────────────────────────────────────────────────────────── */
 .wpkq-song-link {
 	color: var( --wpkq-primary );

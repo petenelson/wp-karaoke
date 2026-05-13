@@ -78,6 +78,10 @@ const WPKQAmin = () => {
 		// Edit modal — YouTube URL
 		editYoutubeUrl:  document.getElementById( 'wpkq-edit-youtube-url' ),
 
+		// Emoji pickers
+		addEmojiPicker:  document.getElementById( 'wpkq-add-emoji-picker' ),
+		editEmojiPicker: document.getElementById( 'wpkq-edit-emoji-picker' ),
+
 		// YouTube Search modal
 		ytSearchModal:    document.getElementById( 'wpkq-yt-search-modal' ),
 		ytSearchClose:    document.getElementById( 'wpkq-yt-search-modal-close' ),
@@ -141,6 +145,35 @@ const WPKQAmin = () => {
 		const div = document.createElement( 'div' );
 		div.appendChild( document.createTextNode( str || '' ) );
 		return div.innerHTML;
+	}
+
+	/**
+	 * Read the currently selected emoji from a picker container, or empty string.
+	 *
+	 * @param {HTMLElement|null} pickerEl
+	 * @return {string}
+	 */
+	function getPickerEmoji( pickerEl ) {
+		if ( ! pickerEl ) {
+			return '';
+		}
+		const checked = pickerEl.querySelector( 'input[type="radio"]:checked' );
+		return checked ? checked.value : '';
+	}
+
+	/**
+	 * Set the selected emoji in a picker container.
+	 *
+	 * @param {HTMLElement|null} pickerEl
+	 * @param {string}           value    Emoji to select, or empty string for none.
+	 */
+	function setPickerEmoji( pickerEl, value ) {
+		if ( ! pickerEl ) {
+			return;
+		}
+		pickerEl.querySelectorAll( 'input[type="radio"]' ).forEach( ( input ) => {
+			input.checked = input.value === ( value || '' );
+		} );
 	}
 
 	/**
@@ -587,25 +620,27 @@ const WPKQAmin = () => {
 	 * @return {string} HTML string.
 	 */
 	function renderNameWithYtDot( singer ) {
-		const name = escHtml( singer.singer_name );
+		const emoji  = singer.emoji ? escHtml( singer.emoji ) + ' ' : '';
+		const name   = escHtml( singer.singer_name );
+		const display = emoji + name;
 
 		if ( ! singer.youtube_url ) {
-			return name;
+			return display;
 		}
 
 		if ( checkingIds.has( singer.id ) ) {
-			return `${ name } <span class="wpkq-yt-dot wpkq-yt-dot--checking" title="Checking video&hellip;" aria-hidden="true"></span>`;
+			return `${ display } <span class="wpkq-yt-dot wpkq-yt-dot--checking" title="Checking video&hellip;" aria-hidden="true"></span>`;
 		}
 
 		if ( true === singer.youtube_playable ) {
-			return `${ name } <span class="wpkq-yt-dot wpkq-yt-dot--ok" title="Video available" aria-hidden="true"></span>`;
+			return `${ display } <span class="wpkq-yt-dot wpkq-yt-dot--ok" title="Video available" aria-hidden="true"></span>`;
 		}
 
 		if ( false === singer.youtube_playable ) {
-			return `${ name } <span class="wpkq-yt-dot wpkq-yt-dot--err" title="Video unavailable" aria-hidden="true"></span>`;
+			return `${ display } <span class="wpkq-yt-dot wpkq-yt-dot--err" title="Video unavailable" aria-hidden="true"></span>`;
 		}
 
-		return name;
+		return display;
 	}
 
 	/**
@@ -1076,6 +1111,7 @@ const WPKQAmin = () => {
 		el.addSong.value       = '';
 		el.addArtist.value     = '';
 		el.addYoutubeUrl.value = '';
+		setPickerEmoji( el.addEmojiPicker, '' );
 
 		el.addModal.style.display = '';
 		el.addModal.removeAttribute( 'hidden' );
@@ -1108,6 +1144,7 @@ const WPKQAmin = () => {
 			singer_name:      name,
 			song:             el.addSong.value.trim().substring( 0, 50 ),
 			artist:           el.addArtist.value.trim().substring( 0, 50 ),
+			emoji:            getPickerEmoji( el.addEmojiPicker ),
 			youtube_url:      youtubeUrl,
 			youtube_playable: null,
 			signup_time:      Math.floor( Date.now() / 1000 ),
@@ -1143,6 +1180,7 @@ const WPKQAmin = () => {
 		el.editSong.value       = singer.song || '';
 		el.editArtist.value     = singer.artist || '';
 		el.editYoutubeUrl.value = singer.youtube_url || '';
+		setPickerEmoji( el.editEmojiPicker, singer.emoji || '' );
 
 		el.modal.style.display = '';
 		el.modal.removeAttribute( 'hidden' );
@@ -1181,6 +1219,7 @@ const WPKQAmin = () => {
 			song:        el.editSong.value.substring( 0, 50 ),
 			artist:      el.editArtist.value.substring( 0, 50 ),
 			youtube_url: newUrl,
+			emoji:       getPickerEmoji( el.editEmojiPicker ),
 		};
 
 		// Reset playability when the URL changes so the dot clears until re-checked.
