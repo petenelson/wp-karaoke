@@ -334,13 +334,13 @@ class Queue {
 			}
 
 			if ( null !== $request->get_param( 'singer_name' ) ) {
-				$singer['singer_name'] = substr( sanitize_text_field( $request->get_param( 'singer_name' ) ), 0, 50 );
+				$singer['singer_name'] = $this->normalize_apostrophes( substr( sanitize_text_field( $request->get_param( 'singer_name' ) ), 0, 50 ) );
 			}
 			if ( null !== $request->get_param( 'song' ) ) {
-				$singer['song'] = substr( sanitize_text_field( $request->get_param( 'song' ) ), 0, 50 );
+				$singer['song'] = $this->normalize_apostrophes( substr( sanitize_text_field( $request->get_param( 'song' ) ), 0, 50 ) );
 			}
 			if ( null !== $request->get_param( 'artist' ) ) {
-				$singer['artist'] = substr( sanitize_text_field( $request->get_param( 'artist' ) ), 0, 50 );
+				$singer['artist'] = $this->normalize_apostrophes( substr( sanitize_text_field( $request->get_param( 'artist' ) ), 0, 50 ) );
 			}
 			if ( null !== $request->get_param( 'youtube_url' ) ) {
 				$singer['youtube_url'] = esc_url_raw( $request->get_param( 'youtube_url' ) );
@@ -374,13 +374,13 @@ class Queue {
 				}
 
 				if ( null !== $request->get_param( 'singer_name' ) ) {
-					$new_singer['singer_name'] = substr( sanitize_text_field( $request->get_param( 'singer_name' ) ), 0, 50 );
+					$new_singer['singer_name'] = $this->normalize_apostrophes( substr( sanitize_text_field( $request->get_param( 'singer_name' ) ), 0, 50 ) );
 				}
 				if ( null !== $request->get_param( 'song' ) ) {
-					$new_singer['song'] = substr( sanitize_text_field( $request->get_param( 'song' ) ), 0, 50 );
+					$new_singer['song'] = $this->normalize_apostrophes( substr( sanitize_text_field( $request->get_param( 'song' ) ), 0, 50 ) );
 				}
 				if ( null !== $request->get_param( 'artist' ) ) {
-					$new_singer['artist'] = substr( sanitize_text_field( $request->get_param( 'artist' ) ), 0, 50 );
+					$new_singer['artist'] = $this->normalize_apostrophes( substr( sanitize_text_field( $request->get_param( 'artist' ) ), 0, 50 ) );
 				}
 				if ( null !== $request->get_param( 'youtube_url' ) ) {
 					$new_singer['youtube_url'] = esc_url_raw( $request->get_param( 'youtube_url' ) );
@@ -614,6 +614,25 @@ class Queue {
 	}
 
 	/**
+	 * Normalize Unicode apostrophes to plain ASCII apostrophes.
+	 *
+	 * Mobile keyboards (e.g. iOS) insert U+2019 instead of a plain apostrophe.
+	 * Depending on request encoding it may arrive as the actual character, as the
+	 * six-character literal "’", or — after backslash-stripping — as "u2019".
+	 * All three forms are converted to a plain apostrophe.
+	 *
+	 * @param string $text Input string.
+	 * @return string Normalised string.
+	 */
+	private function normalize_apostrophes( string $text ): string {
+		return str_replace(
+			[ "\u{2019}", '\\u2019', 'u2019' ],
+			"'",
+			$text
+		);
+	}
+
+	/**
 	 * Sanitize a single singer record.
 	 *
 	 * @param array $singer Raw singer data.
@@ -629,9 +648,9 @@ class Queue {
 
 		return [
 			'id'               => isset( $singer['id'] ) ? preg_replace( '/[^A-Za-z0-9]/', '', $singer['id'] ) : '',
-			'singer_name'      => isset( $singer['singer_name'] ) ? substr( sanitize_text_field( $singer['singer_name'] ), 0, 50 ) : '',
-			'song'             => isset( $singer['song'] ) ? substr( sanitize_text_field( $singer['song'] ), 0, 50 ) : '',
-			'artist'           => isset( $singer['artist'] ) ? substr( sanitize_text_field( $singer['artist'] ), 0, 50 ) : '',
+			'singer_name'      => isset( $singer['singer_name'] ) ? $this->normalize_apostrophes( substr( sanitize_text_field( $singer['singer_name'] ), 0, 50 ) ) : '',
+			'song'             => isset( $singer['song'] ) ? $this->normalize_apostrophes( substr( sanitize_text_field( $singer['song'] ), 0, 50 ) ) : '',
+			'artist'           => isset( $singer['artist'] ) ? $this->normalize_apostrophes( substr( sanitize_text_field( $singer['artist'] ), 0, 50 ) ) : '',
 			'youtube_url'      => isset( $singer['youtube_url'] ) ? esc_url_raw( $singer['youtube_url'] ) : '',
 			'youtube_playable' => $youtube_playable,
 			'signup_time'      => isset( $singer['signup_time'] ) ? absint( $singer['signup_time'] ) : 0,
@@ -737,9 +756,9 @@ class Queue {
 
 		$new_singer = [
 			'id'             => wp_generate_password( 10, false, false ),
-			'singer_name'    => substr( sanitize_text_field( $request->get_param( 'singer_name' ) ?? '' ), 0, 50 ),
-			'song'           => substr( sanitize_text_field( $request->get_param( 'song' ) ?? '' ), 0, 50 ),
-			'artist'         => substr( sanitize_text_field( $request->get_param( 'artist' ) ?? '' ), 0, 50 ),
+			'singer_name'    => $this->normalize_apostrophes( substr( sanitize_text_field( $request->get_param( 'singer_name' ) ?? '' ), 0, 50 ) ),
+			'song'           => $this->normalize_apostrophes( substr( sanitize_text_field( $request->get_param( 'song' ) ?? '' ), 0, 50 ) ),
+			'artist'         => $this->normalize_apostrophes( substr( sanitize_text_field( $request->get_param( 'artist' ) ?? '' ), 0, 50 ) ),
 			'youtube_url'    => '',
 			'signup_time'    => time(),
 			'completed_time' => 0,
