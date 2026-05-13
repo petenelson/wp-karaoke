@@ -634,11 +634,37 @@ class Queue {
 	/**
 	 * Return $emoji if it is in the allowed list, otherwise empty string.
 	 *
+	 * Emoji above U+FFFF (e.g. 🎤 = U+1F3A4) are encoded by PHP's json_encode as
+	 * surrogate-pair escape sequences (🎤). The same backslash-stripping
+	 * that turns ’ into u2019 also turns those sequences into ud83cudfa4.
+	 * Both forms are decoded back to the actual character before validation.
+	 *
 	 * @param string $emoji Candidate emoji.
 	 * @return string
 	 */
 	private function sanitize_emoji( string $emoji ): string {
-		return in_array( $emoji, self::ALLOWED_EMOJIS, true ) ? $emoji : '';
+		if ( in_array( $emoji, self::ALLOWED_EMOJIS, true ) ) {
+			return $emoji;
+		}
+
+		// Handle 🎤 form (backslashes present).
+		if ( preg_match( '/^(\\\\u[0-9a-fA-F]{4})+$/i', $emoji ) ) {
+			$decoded = json_decode( '"' . $emoji . '"' );
+			if ( is_string( $decoded ) && in_array( $decoded, self::ALLOWED_EMOJIS, true ) ) {
+				return $decoded;
+			}
+		}
+
+		// Handle ud83cudfa4 form (backslashes stripped).
+		if ( preg_match( '/^(u[0-9a-fA-F]{4})+$/i', $emoji ) ) {
+			$escaped = preg_replace( '/u([0-9a-fA-F]{4})/i', '\\\\u$1', $emoji );
+			$decoded = json_decode( '"' . $escaped . '"' );
+			if ( is_string( $decoded ) && in_array( $decoded, self::ALLOWED_EMOJIS, true ) ) {
+				return $decoded;
+			}
+		}
+
+		return '';
 	}
 
 	/**
