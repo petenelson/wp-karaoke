@@ -144,12 +144,12 @@ class QueueAdmin {
 	 * @param string $group Unique prefix for input IDs.
 	 */
 	private function render_emoji_options( string $name, string $group ): void {
-		$emojis = [ '🎤', '🎂', '🎉', '⭐', '🔥', '🥳', '🎵' ];
-		foreach ( $emojis as $idx => $emoji ) {
-			$input_id = esc_attr( $group . '-' . $idx );
+		$emoji_map = [ 'mic' => '🎤', 'birthday' => '🎂', 'party' => '🎉', 'star' => '⭐', 'fire' => '🔥', 'fun' => '🥳', 'music' => '🎵' ];
+		foreach ( $emoji_map as $key => $emoji ) {
+			$input_id = esc_attr( $group . '-' . $key );
 			?>
 			<span class="wpkq-emoji-opt">
-				<input class="wpkq-emoji-radio" type="radio" name="<?php echo esc_attr( $name ); ?>" id="<?php echo $input_id; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>" value="<?php echo esc_attr( $emoji ); ?>">
+				<input class="wpkq-emoji-radio" type="radio" name="<?php echo esc_attr( $name ); ?>" id="<?php echo $input_id; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>" value="<?php echo esc_attr( $key ); ?>">
 				<label class="wpkq-emoji-label" for="<?php echo $input_id; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>"><?php echo esc_html( $emoji ); ?></label>
 			</span>
 			<?php

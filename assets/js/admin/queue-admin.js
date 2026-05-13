@@ -93,6 +93,16 @@ const WPKQAmin = () => {
 
 	const { apiBase, nonce, venueSlug, actionsApiBase, youtubeSearchUrl, i18n } = wpkqAdmin;
 
+	const EMOJI_MAP = {
+		mic:      '🎤',
+		birthday: '🎂',
+		party:    '🎉',
+		star:     '⭐',
+		fire:     '🔥',
+		fun:      '🥳',
+		music:    '🎵',
+	};
+
 	const singerApiBase = apiBase + '/singer';
 	const reorderApiUrl = apiBase + '/reorder';
 
@@ -620,9 +630,10 @@ const WPKQAmin = () => {
 	 * @return {string} HTML string.
 	 */
 	function renderNameWithYtDot( singer ) {
-		const emoji  = singer.emoji ? escHtml( singer.emoji ) + ' ' : '';
-		const name   = escHtml( singer.singer_name );
-		const display = emoji + name;
+		const emojiChar = singer.emoji ? ( EMOJI_MAP[ singer.emoji ] || '' ) : '';
+		const emoji     = emojiChar ? escHtml( emojiChar ) + ' ' : '';
+		const name      = escHtml( singer.singer_name );
+		const display   = emoji + name;
 
 		if ( ! singer.youtube_url ) {
 			return display;

@@ -14,6 +14,16 @@
 
 import './style.css';
 
+const EMOJI_MAP = {
+	mic:      '🎤',
+	birthday: '🎂',
+	party:    '🎉',
+	star:     '⭐',
+	fire:     '🔥',
+	fun:      '🥳',
+	music:    '🎵',
+};
+
 /**
  * Now Playing Block module.
  *
@@ -161,7 +171,8 @@ const NowPlayingBlock = {
 				span.classList.add( 'wpkq-monitor__ticker-item--playable' );
 			}
 
-			span.textContent = prefix + name + ( singer.emoji ? ' ' + singer.emoji : '' );
+			const emojiChar = singer.emoji ? ( EMOJI_MAP[ singer.emoji ] || '' ) : '';
+			span.textContent = prefix + name + ( emojiChar ? ' ' + emojiChar : '' );
 			return span;
 		} );
 

@@ -36,11 +36,20 @@ class Queue {
 	const ROUTE = '/queue';
 
 	/**
-	 * Emoji values singers are allowed to choose.
+	 * Map of ASCII keys to emoji characters for singer emoji selection.
+	 * Keys are stored in the database to avoid Unicode encoding issues.
 	 *
-	 * @var string[]
+	 * @var array<string, string>
 	 */
-	const ALLOWED_EMOJIS = [ '🎤', '🎂', '🎉', '⭐', '🔥', '🥳', '🎵' ];
+	const EMOJI_MAP = [
+		'mic'      => '🎤',
+		'birthday' => '🎂',
+		'party'    => '🎉',
+		'star'     => '⭐',
+		'fire'     => '🔥',
+		'fun'      => '🥳',
+		'music'    => '🎵',
+	];
 
 	/**
 	 * Singleton instance.
@@ -632,39 +641,43 @@ class Queue {
 	}
 
 	/**
-	 * Return $emoji if it is in the allowed list, otherwise empty string.
+	 * Validate and normalise an emoji value to an ASCII key from EMOJI_MAP.
 	 *
-	 * Emoji above U+FFFF (e.g. 🎤 = U+1F3A4) are encoded by PHP's json_encode as
-	 * surrogate-pair escape sequences (🎤). The same backslash-stripping
-	 * that turns ’ into u2019 also turns those sequences into ud83cudfa4.
-	 * Both forms are decoded back to the actual character before validation.
+	 * Accepts:
+	 *  - A valid key string (e.g. "mic") — returned as-is.
+	 *  - A raw emoji character — converted to its key via EMOJI_MAP.
+	 *  - A ud83cudfa4 form (backslashes stripped from JSON 🎤) — decoded then looked up.
 	 *
-	 * @param string $emoji Candidate emoji.
-	 * @return string
+	 * Storing ASCII keys avoids Unicode corruption in the wp_json_encode / update_post_meta pipeline.
+	 *
+	 * @param string $emoji Candidate emoji input.
+	 * @return string Valid key from EMOJI_MAP, or empty string.
 	 */
 	private function sanitize_emoji( string $emoji ): string {
-		if ( in_array( $emoji, self::ALLOWED_EMOJIS, true ) ) {
+		// Already a valid key.
+		if ( array_key_exists( $emoji, self::EMOJI_MAP ) ) {
 			return $emoji;
 		}
 
-		// Handle 🎤 form (backslashes present).
-		if ( preg_match( '/^(\\\\u[0-9a-fA-F]{4})+$/i', $emoji ) ) {
-			$decoded = json_decode( '"' . $emoji . '"' );
-			if ( is_string( $decoded ) && in_array( $decoded, self::ALLOWED_EMOJIS, true ) ) {
-				return $decoded;
+		// Raw emoji character — find its key.
+		$key = array_search( $emoji, self::EMOJI_MAP, true );
+		if ( false !== $key ) {
+			return $key;
+		}
+
+		// ud83cudfa4 form: restore backslashes, decode, then look up.
+		if ( preg_match( ‘/^(u[0-9a-fA-F]{4})+$/i’, $emoji ) ) {
+			$escaped = preg_replace( ‘/u([0-9a-fA-F]{4})/i’, ‘\\\\u$1’, $emoji );
+			$decoded = json_decode( ‘"’ . $escaped . ‘"’ );
+			if ( is_string( $decoded ) ) {
+				$key = array_search( $decoded, self::EMOJI_MAP, true );
+				if ( false !== $key ) {
+					return $key;
+				}
 			}
 		}
 
-		// Handle ud83cudfa4 form (backslashes stripped).
-		if ( preg_match( '/^(u[0-9a-fA-F]{4})+$/i', $emoji ) ) {
-			$escaped = preg_replace( '/u([0-9a-fA-F]{4})/i', '\\\\u$1', $emoji );
-			$decoded = json_decode( '"' . $escaped . '"' );
-			if ( is_string( $decoded ) && in_array( $decoded, self::ALLOWED_EMOJIS, true ) ) {
-				return $decoded;
-			}
-		}
-
-		return '';
+		return ‘’;
 	}
 
 	/**
