@@ -666,9 +666,9 @@ class Queue {
 		}
 
 		// ud83cudfa4 form: restore backslashes, decode, then look up.
-		if ( preg_match( ‘/^(u[0-9a-fA-F]{4})+$/i’, $emoji ) ) {
-			$escaped = preg_replace( ‘/u([0-9a-fA-F]{4})/i’, ‘\\\\u$1’, $emoji );
-			$decoded = json_decode( ‘"’ . $escaped . ‘"’ );
+		if ( preg_match( '/^(u[0-9a-fA-F]{4})+$/i', $emoji ) ) {
+			$escaped = preg_replace( '/u([0-9a-fA-F]{4})/i', '\\\\u$1', $emoji );
+			$decoded = json_decode( '"' . $escaped . '"' );
 			if ( is_string( $decoded ) ) {
 				$key = array_search( $decoded, self::EMOJI_MAP, true );
 				if ( false !== $key ) {
@@ -677,7 +677,7 @@ class Queue {
 			}
 		}
 
-		return ‘’;
+		return '';
 	}
 
 	/**
@@ -685,7 +685,7 @@ class Queue {
 	 *
 	 * Mobile keyboards (e.g. iOS) insert U+2019 instead of a plain apostrophe.
 	 * Depending on request encoding it may arrive as the actual character, as the
-	 * six-character literal "’", or — after backslash-stripping — as "u2019".
+	 * six-character literal "'", or — after backslash-stripping — as "u2019".
 	 * All three forms are converted to a plain apostrophe.
 	 *
 	 * @param string $text Input string.
