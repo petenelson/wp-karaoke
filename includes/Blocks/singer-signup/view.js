@@ -108,9 +108,11 @@ const SingerSignupBlock = {
 		e.preventDefault();
 		SingerSignupBlock.clearError( errorEl );
 
-		const name   = form.querySelector( '[name="singer_name"]' ).value.trim();
-		const song   = form.querySelector( '[name="song"]' ).value.trim();
-		const artist = form.querySelector( '[name="artist"]' ).value.trim();
+		const name          = form.querySelector( '[name="singer_name"]' ).value.trim();
+		const song          = form.querySelector( '[name="song"]' ).value.trim();
+		const artist        = form.querySelector( '[name="artist"]' ).value.trim();
+		const checkedEmoji  = form.querySelector( '[name="emoji"]:checked' );
+		const emoji         = checkedEmoji ? checkedEmoji.value : '';
 
 		if ( ! name ) {
 			SingerSignupBlock.showError( errorEl, 'Please enter your name.' );
@@ -137,7 +139,7 @@ const SingerSignupBlock = {
 			const response = await fetch( signupUrl, {
 				method:  'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body:    JSON.stringify( { slug: venueSlug, singer_name: name, song, artist } ),
+				body:    JSON.stringify( { slug: venueSlug, singer_name: name, song, artist, emoji } ),
 			} );
 
 			const data = await response.json();

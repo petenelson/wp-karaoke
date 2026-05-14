@@ -138,6 +138,25 @@ class QueueAdmin {
 	}
 
 	/**
+	 * Render an emoji picker row of radio buttons for a modal field.
+	 *
+	 * @param string $name  The radio input name attribute.
+	 * @param string $group Unique prefix for input IDs.
+	 */
+	private function render_emoji_options( string $name, string $group ): void {
+		$emoji_map = [ 'mic' => '🎤', 'birthday' => '🎂', 'party' => '🎉', 'star' => '⭐', 'fire' => '🔥', 'fun' => '🥳', 'music' => '🎵' ];
+		foreach ( $emoji_map as $key => $emoji ) {
+			$input_id = esc_attr( $group . '-' . $key );
+			?>
+			<span class="wpkq-emoji-opt">
+				<input class="wpkq-emoji-radio" type="radio" name="<?php echo esc_attr( $name ); ?>" id="<?php echo $input_id; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>" value="<?php echo esc_attr( $key ); ?>">
+				<label class="wpkq-emoji-label" for="<?php echo $input_id; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>"><?php echo esc_html( $emoji ); ?></label>
+			</span>
+			<?php
+		}
+	}
+
+	/**
 	 * Render the admin page.
 	 */
 	public function render_page() {
@@ -363,6 +382,12 @@ class QueueAdmin {
 							<label for="wpkq-add-youtube-url"><?php esc_html_e( 'YouTube URL', 'wp-karaoke' ); ?></label>
 							<input type="url" id="wpkq-add-youtube-url" autocomplete="off" placeholder="https://www.youtube.com/watch?v=...">
 						</div>
+						<div class="wpkq-field">
+							<label><?php esc_html_e( 'Emoji', 'wp-karaoke' ); ?> <span class="wpkq-field-optional"><?php esc_html_e( '(optional)', 'wp-karaoke' ); ?></span></label>
+							<div class="wpkq-emoji-picker" id="wpkq-add-emoji-picker">
+								<?php $this->render_emoji_options( 'wpkq-add-emoji', 'wpkq-add-emoji' ); ?>
+							</div>
+						</div>
 					</div>
 					<div class="wpkq-modal-footer">
 						<button class="wpkq-btn wpkq-btn--secondary" id="wpkq-add-modal-cancel"><?php esc_html_e( 'Cancel', 'wp-karaoke' ); ?></button>
@@ -395,6 +420,12 @@ class QueueAdmin {
 						<div class="wpkq-field">
 							<label for="wpkq-edit-youtube-url"><?php esc_html_e( 'YouTube URL', 'wp-karaoke' ); ?></label>
 							<input type="url" id="wpkq-edit-youtube-url" autocomplete="off" placeholder="https://www.youtube.com/watch?v=...">
+						</div>
+						<div class="wpkq-field">
+							<label><?php esc_html_e( 'Emoji', 'wp-karaoke' ); ?> <span class="wpkq-field-optional"><?php esc_html_e( '(optional)', 'wp-karaoke' ); ?></span></label>
+							<div class="wpkq-emoji-picker" id="wpkq-edit-emoji-picker">
+								<?php $this->render_emoji_options( 'wpkq-edit-emoji', 'wpkq-edit-emoji' ); ?>
+							</div>
 						</div>
 					</div>
 					<div class="wpkq-modal-footer">

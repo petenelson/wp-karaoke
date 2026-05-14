@@ -75,6 +75,60 @@
 	background: #fff;
 }
 
+/* ── Emoji picker ───────────────────────────────────────────────── */
+
+.wpkq-signup__optional {
+	font-weight: 400;
+	color: #94a3b8;
+	font-size: 0.875em;
+	margin-left: 4px;
+}
+
+.wpkq-signup__emoji-picker {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.wpkq-signup__emoji-opt {
+	position: relative;
+}
+
+.wpkq-signup__emoji-radio {
+	position: absolute;
+	opacity: 0;
+	width: 0;
+	height: 0;
+	pointer-events: none;
+}
+
+.wpkq-signup__emoji-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	font-size: 1.6rem;
+	border: 2px solid #cbd5e1;
+	border-radius: 10px;
+	cursor: pointer;
+	background: #f8fafc;
+	transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+	user-select: none;
+	line-height: 1;
+}
+
+.wpkq-signup__emoji-radio:checked + .wpkq-signup__emoji-btn {
+	border-color: #6366f1;
+	background: #eef2ff;
+	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.wpkq-signup__emoji-btn:hover {
+	border-color: #818cf8;
+	background: #f0efff;
+}
+
 /* ── Error message ──────────────────────────────────────────────── */
 
 .wpkq-signup__error {

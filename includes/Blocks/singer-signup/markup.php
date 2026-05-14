@@ -96,6 +96,33 @@ $disabled     = $signups_open ? '' : 'disabled';
 			/>
 		</div>
 
+		<div class="wpkq-signup__field">
+			<span class="wpkq-signup__label" id="wpkq-signup-emoji-label">
+				<?php esc_html_e( 'Choose an Emoji', 'wp-karaoke' ); ?>
+				<span class="wpkq-signup__optional"><?php esc_html_e( '(optional)', 'wp-karaoke' ); ?></span>
+			</span>
+			<div class="wpkq-signup__emoji-picker" role="group" aria-labelledby="wpkq-signup-emoji-label">
+				<?php
+				$emoji_map = [ 'mic' => '🎤', 'birthday' => '🎂', 'party' => '🎉', 'star' => '⭐', 'fire' => '🔥', 'fun' => '🥳', 'music' => '🎵' ];
+				foreach ( $emoji_map as $key => $emoji ) :
+				?>
+				<span class="wpkq-signup__emoji-opt">
+					<input
+						class="wpkq-signup__emoji-radio"
+						type="radio"
+						name="emoji"
+						id="wpkq-signup-emoji-<?php echo esc_attr( $key ); ?>"
+						value="<?php echo esc_attr( $key ); ?>"
+					>
+					<label
+						class="wpkq-signup__emoji-btn"
+						for="wpkq-signup-emoji-<?php echo esc_attr( $key ); ?>"
+					><?php echo esc_html( $emoji ); ?></label>
+				</span>
+				<?php endforeach; ?>
+			</div>
+		</div>
+
 		<p class="wpkq-signup__error" role="alert" hidden></p>
 
 		<p></p>
