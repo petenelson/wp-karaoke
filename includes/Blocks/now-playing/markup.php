@@ -97,20 +97,15 @@ $rest_url = esc_url_raw( rest_url( 'wpkq/v1/queue?slug=' . rawurlencode( $venue_
 	data-advance-url="<?php echo esc_attr( esc_url_raw( rest_url( 'wpkq/v1/queue/advance' ) ) ); ?>"
 	data-actions-url="<?php echo esc_attr( esc_url_raw( rest_url( 'wpkq/v1/actions' ) ) ); ?>"
 	data-ticker-queue-limit="<?php echo esc_attr( $ticker_queue_limit ); ?>"
+	data-seed-url="<?php echo esc_attr( esc_url_raw( rest_url( 'wpkq/v1/queue/seed' ) ) ); ?>"
 >
-	<form class="wpkq-monitor__url-bar" id="wpkq-url-form" novalidate>
-		<input
-			type="text"
-			id="wpkq-url-input"
-			class="wpkq-monitor__url-input"
-			placeholder="<?php esc_attr_e( 'Paste YouTube URL', 'wp-karaoke' ); ?>"
-			autocomplete="off"
-			spellcheck="false"
-		>
-		<button type="submit" class="wpkq-monitor__url-submit">
-			<?php esc_html_e( 'Load', 'wp-karaoke' ); ?>
+	<?php if ( in_array( wp_get_environment_type(), [ 'local', 'development' ], true ) ) : ?>
+	<div class="wpkq-monitor__dev-tools">
+		<button type="button" class="wpkq-monitor__seed-btn" id="wpkq-seed-btn">
+			<?php esc_html_e( 'Load Fake Singers', 'wp-karaoke' ); ?>
 		</button>
-	</form>
+	</div>
+	<?php endif; ?>
 
 	<div class="wpkq-monitor__player-wrap">
 		<div class="wpkq-monitor__welcome" id="wpkq-welcome">

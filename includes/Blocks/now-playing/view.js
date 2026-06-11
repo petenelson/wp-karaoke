@@ -99,6 +99,12 @@ const NowPlayingBlock = {
 	/** @type {boolean} True while a queue fetch is in-flight; prevents concurrent requests. */
 	isFetchingQueue: false,
 
+	/** @type {number} The endX target stored so speed changes can continue from mid-scroll. */
+	currentEndX: 0,
+
+	/** @type {boolean} True when the mouse is over the right half of the ticker (fast-scroll mode). */
+	isSpedUp: false,
+
 	/**
 	 * Build a placeholder ticker item for an empty queue.
 	 *
@@ -173,6 +179,31 @@ const NowPlayingBlock = {
 	},
 
 	/**
+	 * Re-apply the scroll transition from the current mid-scroll position at a new speed.
+	 * Reads the live computed translateX so it can be called at any point during a scroll.
+	 *
+	 * @param {HTMLElement} tickerInner Ticker inner element.
+	 * @param {number}      multiplier  Speed multiplier: 1 = normal, 1.5 = 50% faster.
+	 */
+	applySpeed: ( tickerInner, multiplier ) => {
+		const currentX  = new DOMMatrix( window.getComputedStyle( tickerInner ).transform ).m41;
+		const endX      = NowPlayingBlock.currentEndX;
+		const remaining = endX - currentX;
+
+		if ( remaining >= 0 ) {
+			return;
+		}
+
+		const duration = Math.abs( remaining ) / ( 100 * multiplier );
+
+		tickerInner.style.transition = 'none';
+		tickerInner.style.transform  = `translateX( ${ currentX }px )`;
+		void tickerInner.offsetWidth;
+		tickerInner.style.transition = `transform ${ duration }s linear`;
+		tickerInner.style.transform  = `translateX( ${ endX }px )`;
+	},
+
+	/**
 	 * Start a one-shot CSS transition that scrolls the ticker from the right
 	 * edge of the container until the last item's left edge reaches the
 	 * container's left edge, then fires 'transitionend'.
@@ -188,8 +219,10 @@ const NowPlayingBlock = {
 		const containerWidth = tickerInner.parentElement.offsetWidth;
 		const endX           = -lastItem.offsetLeft;
 		const distance       = containerWidth - endX;
-		const speed          = 100; // px per second
+		const speed          = 100 * ( NowPlayingBlock.isSpedUp ? 4 : 1 );
 		const duration       = distance / speed;
+
+		NowPlayingBlock.currentEndX = endX;
 
 		// Snap to start position without transition.
 		tickerInner.style.transition = 'none';
@@ -345,8 +378,7 @@ const NowPlayingBlock = {
 			NowPlayingBlock.TICKER_QUEUE_LIMIT = limitAttr;
 		}
 		const tickerInner = wrapper.querySelector( '.wpkq-monitor__ticker-inner' );
-		const urlForm     = wrapper.querySelector( '#wpkq-url-form' );
-		const urlInput    = wrapper.querySelector( '#wpkq-url-input' );
+		const seedBtn     = wrapper.querySelector( '#wpkq-seed-btn' );
 
 		// -----------------------------------------------------------------------
 		// YouTube IFrame Player API
@@ -371,25 +403,26 @@ const NowPlayingBlock = {
 		apiScript.src   = 'https://www.youtube.com/iframe_api';
 		document.head.appendChild( apiScript );
 
-		// Handle URL form submission.
-		if ( urlForm && urlInput ) {
-			urlForm.addEventListener( 'submit', ( e ) => {
-				e.preventDefault();
-
-				const videoId = NowPlayingBlock.parseVideoId( urlInput.value );
-
-				if ( videoId ) {
-					NowPlayingBlock.loadVideo( videoId );
-					urlInput.value = '';
-					urlInput.blur();
-				} else {
-					urlInput.classList.add( 'wpkq-monitor__url-input--error' );
-					setTimeout( () => {
-						urlInput.classList.remove(
-							'wpkq-monitor__url-input--error'
-						);
-					}, 1500 );
-				}
+		// Seed the queue with fake singers (local/dev only).
+		if ( seedBtn ) {
+			const seedUrl = wrapper.dataset.seedUrl;
+			seedBtn.addEventListener( 'click', () => {
+				seedBtn.disabled = true;
+				fetch( seedUrl, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify( { slug: venueSlug } ),
+				} )
+					.then( ( res ) => res.json() )
+					.then( ( data ) => {
+						if ( data.queue ) {
+							NowPlayingBlock.renderTicker( tickerInner, data.queue );
+						}
+					} )
+					.catch( () => {} )
+					.finally( () => {
+						seedBtn.disabled = false;
+					} );
 			} );
 		}
 
@@ -400,6 +433,23 @@ const NowPlayingBlock = {
 		if ( ! tickerInner || ! restUrl ) {
 			return;
 		}
+
+		// Speed up scroll 50% when mouse is over the right half of the ticker.
+		const tickerWrap = wrapper.querySelector( '.wpkq-monitor__ticker-wrap' );
+		tickerWrap.addEventListener( 'mousemove', ( e ) => {
+			const rect    = tickerWrap.getBoundingClientRect();
+			const isRight = e.clientX > rect.right - 120;
+			if ( isRight !== NowPlayingBlock.isSpedUp ) {
+				NowPlayingBlock.isSpedUp = isRight;
+				NowPlayingBlock.applySpeed( tickerInner, isRight ? 4 : 1 );
+			}
+		} );
+		tickerWrap.addEventListener( 'mouseleave', () => {
+			if ( NowPlayingBlock.isSpedUp ) {
+				NowPlayingBlock.isSpedUp = false;
+				NowPlayingBlock.applySpeed( tickerInner, 1 );
+			}
+		} );
 
 		// When the scroll completes, fetch a fresh queue and restart.
 		tickerInner.addEventListener( 'transitionend', () => {

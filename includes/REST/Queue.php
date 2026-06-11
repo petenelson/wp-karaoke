@@ -171,6 +171,26 @@ class Queue {
 			]
 		);
 
+		// POST /wpkq/v1/queue/seed — load fake singers (local/dev only).
+		if ( in_array( wp_get_environment_type(), [ 'local', 'development' ], true ) ) {
+			register_rest_route(
+				self::NAMESPACE,
+				self::ROUTE . '/seed',
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ $this, 'seed_queue' ],
+					'permission_callback' => [ $this, 'advance_permissions_check' ],
+					'args'                => [
+						'slug' => [
+							'required'          => true,
+							'type'              => 'string',
+							'sanitize_callback' => 'sanitize_title',
+						],
+					],
+				]
+			);
+		}
+
 		// POST /wpkq/v1/queue/advance — monitor: advance to next singer.
 		register_rest_route(
 			self::NAMESPACE,
@@ -609,6 +629,130 @@ class Queue {
 		}
 
 		Venue::delete_all_new_singers( $post_id );
+
+		return $this->get_queue( $request );
+	}
+
+	/**
+	 * POST /wpkq/v1/queue/seed (local/dev only)
+	 *
+	 * Replaces the queue with a set of hardcoded fake singers for local testing.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function seed_queue( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$slug   = $request->get_param( 'slug' );
+		$result = Venue::get_queue_by_slug( $slug );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$post_id = $result['post_id'];
+		$now     = time();
+
+		$fake_singers = [
+			[
+				'id'               => wp_generate_password( 10, false, false ),
+				'singer_name'      => 'Ripley',
+				'song'             => "Don't Stop Believin'",
+				'artist'           => 'Journey',
+				'youtube_url'      => 'https://www.youtube.com/watch?v=VcjzHMhBtf0',
+				'youtube_playable' => null,
+				'signup_time'      => $now - 3600,
+				'completed_time'   => 0,
+				'status'           => 'on-stage',
+			],
+			[
+				'id'               => wp_generate_password( 10, false, false ),
+				'singer_name'      => 'Hicks',
+				'song'             => 'Bohemian Rhapsody',
+				'artist'           => 'Queen',
+				'youtube_url'      => 'https://www.youtube.com/watch?v=JNo3T5vz_zE',
+				'youtube_playable' => null,
+				'signup_time'      => $now - 3300,
+				'completed_time'   => 0,
+				'status'           => 'in-the-queue',
+			],
+			[
+				'id'               => wp_generate_password( 10, false, false ),
+				'singer_name'      => 'Hudson',
+				'song'             => 'Sweet Caroline',
+				'artist'           => 'Neil Diamond',
+				'youtube_url'      => 'https://www.youtube.com/watch?v=1ijnZnYIqL0',
+				'youtube_playable' => null,
+				'signup_time'      => $now - 3000,
+				'completed_time'   => 0,
+				'status'           => 'in-the-queue',
+			],
+			[
+				'id'               => wp_generate_password( 10, false, false ),
+				'singer_name'      => 'Vasquez',
+				'song'             => 'Livin on a Prayer',
+				'artist'           => 'Bon Jovi',
+				'youtube_url'      => 'https://www.youtube.com/watch?v=lDK9QqIzhwk',
+				'youtube_playable' => null,
+				'signup_time'      => $now - 2700,
+				'completed_time'   => 0,
+				'status'           => 'in-the-queue',
+			],
+			[
+				'id'               => wp_generate_password( 10, false, false ),
+				'singer_name'      => 'Bishop',
+				'song'             => 'Total Eclipse of the Heart',
+				'artist'           => 'Bonnie Tyler',
+				'youtube_url'      => 'https://www.youtube.com/watch?v=Q-PfOnqA-Kw',
+				'youtube_playable' => null,
+				'signup_time'      => $now - 2400,
+				'completed_time'   => 0,
+				'status'           => 'in-the-queue',
+			],
+			[
+				'id'               => wp_generate_password( 10, false, false ),
+				'singer_name'      => 'Newt',
+				'song'             => 'Mr. Brightside',
+				'artist'           => 'The Killers',
+				'youtube_url'      => 'https://www.youtube.com/watch?v=GmB0VtPggOE',
+				'youtube_playable' => null,
+				'signup_time'      => $now - 2100,
+				'completed_time'   => 0,
+				'status'           => 'in-the-queue',
+			],
+			[
+				'id'               => wp_generate_password( 10, false, false ),
+				'singer_name'      => 'Burke',
+				'song'             => 'Since U Been Gone',
+				'artist'           => 'Kelly Clarkson',
+				'youtube_url'      => 'https://www.youtube.com/watch?v=R7UrFYvl5TE',
+				'youtube_playable' => null,
+				'signup_time'      => $now - 1800,
+				'completed_time'   => 0,
+				'status'           => 'in-the-queue',
+			],
+			[
+				'id'               => wp_generate_password( 10, false, false ),
+				'singer_name'      => 'Apone',
+				'song'             => 'Africa',
+				'artist'           => 'Toto',
+				'youtube_url'      => 'https://www.youtube.com/watch?v=FTQbiNvZqaY',
+				'youtube_playable' => null,
+				'signup_time'      => $now - 1500,
+				'completed_time'   => 0,
+				'status'           => 'in-the-queue',
+			],
+		];
+
+		Venue::delete_all_new_singers( $post_id );
+		$saved = Venue::save_queue( $post_id, $fake_singers );
+
+		if ( false === $saved ) {
+			return new \WP_Error(
+				'save_failed',
+				__( 'Failed to seed queue.', 'wp-karaoke' ),
+				[ 'status' => 500 ]
+			);
+		}
 
 		return $this->get_queue( $request );
 	}
