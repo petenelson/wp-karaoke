@@ -103,14 +103,6 @@ class QueueAdmin {
 			]
 		);
 
-		// Single venue: go straight to the queue management page.
-		if ( 1 === count( $venues ) ) {
-			wp_safe_redirect(
-				admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&slug=' . rawurlencode( $venues[0]->post_name ) )
-			);
-			exit;
-		}
-
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Karaoke Venues', 'wp-karaoke' ); ?></h1>
@@ -120,8 +112,12 @@ class QueueAdmin {
 				<ul style="margin-top:1em;">
 					<?php foreach ( $venues as $venue ) : ?>
 						<li style="margin-bottom:0.5em;">
-							<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&slug=' . rawurlencode( $venue->post_name ) ) ); ?>">
+							<a href="<?php echo esc_url( get_permalink( $venue->ID ) ); ?>" target="_blank" rel="noopener">
 								<?php echo esc_html( $venue->post_title ); ?>
+							</a>
+							&mdash;
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&slug=' . rawurlencode( $venue->post_name ) ) ); ?>">
+								<?php esc_html_e( 'Manage Queue', 'wp-karaoke' ); ?>
 							</a>
 						</li>
 					<?php endforeach; ?>
