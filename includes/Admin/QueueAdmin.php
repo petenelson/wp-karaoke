@@ -88,8 +88,7 @@ class QueueAdmin {
 	/**
 	 * Render the venue picker page.
 	 *
-	 * With a single published venue, redirects straight to its queue page.
-	 * With multiple venues, shows a list of links.
+	 * Shows a list of published top-level venues with links to their queue pages.
 	 */
 	public function render_venue_picker(): void {
 		if ( ! current_user_can( Capabilities::CAP ) ) {
@@ -187,7 +186,8 @@ class QueueAdmin {
 		);
 
 		// Pass data to JS.
-		$slug = isset( $_GET['slug'] ) ? sanitize_title( wp_unslash( $_GET['slug'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$params = filter_var_array( $_GET, [ 'slug' => FILTER_DEFAULT ] ); // phpcs:ignore WordPress.Security.NonceVerification
+		$slug   = sanitize_title( wp_unslash( (string) ( $params['slug'] ?? '' ) ) );
 
 		wp_localize_script(
 			'wpkq-admin',
@@ -226,7 +226,8 @@ class QueueAdmin {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-karaoke' ) );
 		}
 
-		$slug = isset( $_GET['slug'] ) ? sanitize_title( wp_unslash( $_GET['slug'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$params = filter_var_array( $_GET, [ 'slug' => FILTER_DEFAULT ] ); // phpcs:ignore WordPress.Security.NonceVerification
+		$slug   = sanitize_title( wp_unslash( (string) ( $params['slug'] ?? '' ) ) );
 
 		if ( empty( $slug ) ) {
 			wp_die( esc_html__( 'No venue specified.', 'wp-karaoke' ) );
