@@ -21,11 +21,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class QueueAdmin {
 
-	/**
-	 * Admin page slug.
-	 *
-	 * @var string
-	 */
+	/** Top-level admin menu slug. */
+	const MENU_SLUG = 'wpkq-karaoke';
+
+	/** Queue management page slug. */
 	const PAGE_SLUG = 'wpkq-manage-queue';
 
 	/**
@@ -56,17 +55,80 @@ class QueueAdmin {
 	}
 
 	/**
-	 * Register the admin menu page.
+	 * Register the admin menu pages.
+	 *
+	 * Adds a top-level "Karaoke" entry visible to karaoke hosts that leads to
+	 * a venue picker (or redirects directly when only one venue exists).
+	 * The queue management page itself stays hidden from the menu sidebar.
 	 */
 	public function register_admin_page() {
+		add_menu_page(
+			__( 'Karaoke', 'wp-karaoke' ),
+			__( 'Karaoke', 'wp-karaoke' ),
+			Capabilities::CAP,
+			self::MENU_SLUG,
+			[ $this, 'render_venue_picker' ],
+			'dashicons-playlist-audio',
+			30
+		);
+
 		add_submenu_page(
-			'none', // No parent — hidden from menu, accessible via URL.
+			'none', // Hidden from sidebar; reached via the venue picker or direct URL.
 			__( 'Manage Queue', 'wp-karaoke' ),
 			__( 'Manage Queue', 'wp-karaoke' ),
 			Capabilities::CAP,
 			self::PAGE_SLUG,
 			[ $this, 'render_page' ]
 		);
+	}
+
+	/**
+	 * Render the venue picker page.
+	 *
+	 * With a single published venue, redirects straight to its queue page.
+	 * With multiple venues, shows a list of links.
+	 */
+	public function render_venue_picker(): void {
+		if ( ! current_user_can( Capabilities::CAP ) ) {
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-karaoke' ) );
+		}
+
+		$venues = get_posts(
+			[
+				'post_type'      => 'karaoke-venue',
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+			]
+		);
+
+		// Single venue: go straight to the queue management page.
+		if ( 1 === count( $venues ) ) {
+			wp_safe_redirect(
+				admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&slug=' . rawurlencode( $venues[0]->post_name ) )
+			);
+			exit;
+		}
+
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Karaoke Venues', 'wp-karaoke' ); ?></h1>
+			<?php if ( empty( $venues ) ) : ?>
+				<p><?php esc_html_e( 'No karaoke venues found. Ask an administrator to set one up.', 'wp-karaoke' ); ?></p>
+			<?php else : ?>
+				<ul style="margin-top:1em;">
+					<?php foreach ( $venues as $venue ) : ?>
+						<li style="margin-bottom:0.5em;">
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&slug=' . rawurlencode( $venue->post_name ) ) ); ?>">
+								<?php echo esc_html( $venue->post_title ); ?>
+							</a>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			<?php endif; ?>
+		</div>
+		<?php
 	}
 
 	/**
