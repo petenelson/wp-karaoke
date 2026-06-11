@@ -62,15 +62,18 @@ class QueueAdmin {
 	 * The queue management page itself stays hidden from the menu sidebar.
 	 */
 	public function register_admin_page() {
-		add_menu_page(
-			__( 'Karaoke', 'wp-karaoke' ),
-			__( 'Karaoke', 'wp-karaoke' ),
-			Capabilities::CAP,
-			self::MENU_SLUG,
-			[ $this, 'render_venue_picker' ],
-			'dashicons-playlist-audio',
-			30
-		);
+		// Admins navigate to queue management via the Karaoke Venues post type list.
+		if ( ! current_user_can( 'manage_options' ) ) {
+			add_menu_page(
+				__( 'Karaoke', 'wp-karaoke' ),
+				__( 'Karaoke', 'wp-karaoke' ),
+				Capabilities::CAP,
+				self::MENU_SLUG,
+				[ $this, 'render_venue_picker' ],
+				'dashicons-playlist-audio',
+				30
+			);
+		}
 
 		add_submenu_page(
 			'none', // Hidden from sidebar; reached via the venue picker or direct URL.
