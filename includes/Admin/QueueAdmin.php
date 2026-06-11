@@ -7,6 +7,7 @@
 
 namespace WPKQ\Admin;
 
+use WPKQ\Capabilities;
 use WPKQ\PostType\Venue;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -62,7 +63,7 @@ class QueueAdmin {
 			'none', // No parent — hidden from menu, accessible via URL.
 			__( 'Manage Queue', 'wp-karaoke' ),
 			__( 'Manage Queue', 'wp-karaoke' ),
-			'manage_options',
+			Capabilities::CAP,
 			self::PAGE_SLUG,
 			[ $this, 'render_page' ]
 		);
@@ -141,7 +142,7 @@ class QueueAdmin {
 	 * Render the admin page.
 	 */
 	public function render_page() {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( Capabilities::CAP ) ) {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-karaoke' ) );
 		}
 

@@ -242,7 +242,7 @@ class Venue {
 	public function handle_toggle_signups() {
 		check_admin_referer( 'wpkq_toggle_signups' );
 
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( \WPKQ\Capabilities::CAP ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'wp-karaoke' ) );
 		}
 
