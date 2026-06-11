@@ -93,6 +93,7 @@ class QueueAdmin {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-karaoke' ) );
 		}
 
+		// Get the top-level posts. We only want to show venues here, not their child posts.
 		$venues = get_posts(
 			[
 				'post_type'      => 'karaoke-venue',
@@ -100,28 +101,46 @@ class QueueAdmin {
 				'posts_per_page' => -1,
 				'orderby'        => 'title',
 				'order'          => 'ASC',
+				'post_parent'    => 0,
 			]
 		);
 
 		?>
-		<div class="wrap">
+		<style>
+			/* Hide admin notices on the venue picker page for a cleaner look. */
+			.notice {
+				display: none;
+			}
+		</style>
+
+		<div class="wrap wpkq-venue-picker">
 			<h1><?php esc_html_e( 'Karaoke Venues', 'wp-karaoke' ); ?></h1>
 			<?php if ( empty( $venues ) ) : ?>
 				<p><?php esc_html_e( 'No karaoke venues found. Ask an administrator to set one up.', 'wp-karaoke' ); ?></p>
 			<?php else : ?>
-				<ul style="margin-top:1em;">
-					<?php foreach ( $venues as $venue ) : ?>
-						<li style="margin-bottom:0.5em;">
-							<a href="<?php echo esc_url( get_permalink( $venue->ID ) ); ?>" target="_blank" rel="noopener">
-								<?php echo esc_html( $venue->post_title ); ?>
-							</a>
-							&mdash;
-							<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&slug=' . rawurlencode( $venue->post_name ) ) ); ?>">
-								<?php esc_html_e( 'Manage Queue', 'wp-karaoke' ); ?>
-							</a>
-						</li>
-					<?php endforeach; ?>
-				</ul>
+				<?php foreach ( $venues as $venue ) : ?>
+					<p>
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&slug=' . rawurlencode( $venue->post_name ) ) ); ?>"><?php echo esc_html( trim( $venue->post_title ) ); ?></a>
+						<?php
+						// Show child posts (e.g. past events) indented under the venue.
+						$child_posts = get_posts(
+							[
+								'post_type'      => 'karaoke-venue',
+								'post_status'    => 'publish',
+								'posts_per_page' => -1,
+								'orderby'        => 'date',
+								'order'          => 'DESC',
+								'post_parent'    => $venue->ID,
+							]
+						);
+						foreach ( $child_posts as $child ) :
+							?>
+								| <a href="<?php echo esc_url( get_permalink( $child->ID ) ); ?>" target="_blank" rel="noopener">
+									<?php echo esc_html( $child->post_title ); ?>
+								</a>
+						<?php endforeach; ?>
+					</p>
+				<?php endforeach; ?>
 			<?php endif; ?>
 		</div>
 		<?php
