@@ -189,6 +189,24 @@
 	border: none;
 }
 
+/* Progress bar — reflects current video playback position. */
+.wpkq-monitor__progress {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 6px;
+	background: rgba( 255, 255, 255, 0.15 );
+	z-index: 2;
+}
+
+.wpkq-monitor__progress-bar {
+	height: 100%;
+	width: 0%;
+	background: #3fd2f9;
+	transition: width 0.25s linear;
+}
+
 /* -----------------------------------------------------------------------
    Ticker — infinite horizontal scroll
    ----------------------------------------------------------------------- */
