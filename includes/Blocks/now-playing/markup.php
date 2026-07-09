@@ -108,6 +108,9 @@ $rest_url = esc_url_raw( rest_url( 'wpkq/v1/queue?slug=' . rawurlencode( $venue_
 	<?php endif; ?>
 
 	<div class="wpkq-monitor__player-wrap">
+		<div class="wpkq-monitor__progress">
+			<div class="wpkq-monitor__progress-bar" id="wpkq-progress-bar"></div>
+		</div>
 		<div class="wpkq-monitor__welcome" id="wpkq-welcome">
 			<?php if ( ! empty( trim( $content ) ) ) : ?>
 				<?php echo $content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>

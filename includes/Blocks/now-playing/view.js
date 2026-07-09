@@ -28,6 +28,9 @@ const NowPlayingBlock = {
 	/** @type {YT.Player|null} Active YouTube IFrame player instance. */
 	player: null,
 
+	/** @type {HTMLElement|null} Progress bar fill element. */
+	progressBar: null,
+
 	/**
 	 * Extract a YouTube video ID from a URL or bare ID string.
 	 *
@@ -86,11 +89,33 @@ const NowPlayingBlock = {
 		if ( NowPlayingBlock.player && typeof NowPlayingBlock.player.loadVideoById === 'function' ) {
 			NowPlayingBlock.player.loadVideoById( videoId );
 
+			if ( NowPlayingBlock.progressBar ) {
+				NowPlayingBlock.progressBar.style.width = '0%';
+			}
+
 			const welcome = document.getElementById( 'wpkq-welcome' );
 			if ( welcome ) {
 				welcome.hidden = true;
 			}
 		}
+	},
+
+	/**
+	 * Update the progress bar to reflect the player's current playback position.
+	 * Called on a polling interval since the IFrame API has no timeupdate event.
+	 */
+	updateProgress: () => {
+		const player = NowPlayingBlock.player;
+		const bar    = NowPlayingBlock.progressBar;
+
+		if ( ! bar || ! player || typeof player.getDuration !== 'function' ) {
+			return;
+		}
+
+		const duration = player.getDuration();
+		const percent  = duration ? ( player.getCurrentTime() / duration ) * 100 : 0;
+
+		bar.style.width = `${ Math.min( percent, 100 ) }%`;
 	},
 
 	/** Maximum number of in-the-queue singers shown in the ticker (excluding on-stage). */
@@ -383,6 +408,12 @@ const NowPlayingBlock = {
 		// -----------------------------------------------------------------------
 		// YouTube IFrame Player API
 		// -----------------------------------------------------------------------
+
+		NowPlayingBlock.progressBar = wrapper.querySelector( '.wpkq-monitor__progress-bar' );
+
+		if ( NowPlayingBlock.progressBar ) {
+			setInterval( NowPlayingBlock.updateProgress, 250 );
+		}
 
 		// Initialise the YT.Player once the API script is ready.
 		window.onYouTubeIframeAPIReady = () => {
