@@ -121,6 +121,12 @@ const NowPlayingBlock = {
 	/** Maximum number of in-the-queue singers shown in the ticker (excluding on-stage). */
 	TICKER_QUEUE_LIMIT: 6,
 
+	/** Milliseconds between background queue polls. */
+	QUEUE_POLL_MS: 5000,
+
+	/** @type {Array} Most recently fetched queue; read by the ticker on each scroll-complete cycle. */
+	queueCache: [],
+
 	/** @type {boolean} True while a queue fetch is in-flight; prevents concurrent requests. */
 	isFetchingQueue: false,
 
@@ -286,16 +292,31 @@ const NowPlayingBlock = {
 	 */
 	fetchQueue: ( restUrl, callback ) => {
 		if ( NowPlayingBlock.isFetchingQueue ) {
-			return;
+			return Promise.resolve();
 		}
 		NowPlayingBlock.isFetchingQueue = true;
-		fetch( restUrl )
+		return fetch( restUrl )
 			.then( ( res ) => res.json() )
 			.then( ( data ) => callback( data.queue || [] ) )
 			.catch( () => callback( [] ) )
 			.finally( () => {
 				NowPlayingBlock.isFetchingQueue = false;
 			} );
+	},
+
+	/**
+	 * Start polling the queue REST endpoint in the background, caching the result
+	 * so the ticker can read it on each scroll-complete cycle without its own fetch.
+	 *
+	 * @param {string} restUrl REST endpoint URL.
+	 */
+	startQueuePolling: ( restUrl ) => {
+		const poll = () => {
+			NowPlayingBlock.fetchQueue( restUrl, ( singers ) => {
+				NowPlayingBlock.queueCache = singers;
+			} ).finally( () => setTimeout( poll, NowPlayingBlock.QUEUE_POLL_MS ) );
+		};
+		setTimeout( poll, NowPlayingBlock.QUEUE_POLL_MS );
 	},
 
 	/**
@@ -447,6 +468,7 @@ const NowPlayingBlock = {
 					.then( ( res ) => res.json() )
 					.then( ( data ) => {
 						if ( data.queue ) {
+							NowPlayingBlock.queueCache = data.queue;
 							NowPlayingBlock.renderTicker( tickerInner, data.queue );
 						}
 					} )
@@ -482,9 +504,9 @@ const NowPlayingBlock = {
 			}
 		} );
 
-		// When the scroll completes, fetch a fresh queue and restart.
+		// When the scroll completes, re-render from the cached queue and restart.
 		tickerInner.addEventListener( 'transitionend', () => {
-			NowPlayingBlock.fetchQueue( restUrl, ( singers ) => NowPlayingBlock.renderTicker( tickerInner, singers ) );
+			NowPlayingBlock.renderTicker( tickerInner, NowPlayingBlock.queueCache );
 		} );
 
 		// Click a singer item to advance them to on-stage and load their video.
@@ -507,6 +529,7 @@ const NowPlayingBlock = {
 				.then( ( res ) => res.json() )
 				.then( ( data ) => {
 					if ( data.queue ) {
+						NowPlayingBlock.queueCache = data.queue;
 						NowPlayingBlock.renderTicker( tickerInner, data.queue );
 					}
 					if ( youtubeUrl ) {
@@ -519,8 +542,12 @@ const NowPlayingBlock = {
 				.catch( () => {} );
 		} );
 
-		// Initial load.
-		NowPlayingBlock.fetchQueue( restUrl, ( singers ) => NowPlayingBlock.renderTicker( tickerInner, singers ) );
+		// Initial load, then start background polling to keep the cache fresh.
+		NowPlayingBlock.fetchQueue( restUrl, ( singers ) => {
+			NowPlayingBlock.queueCache = singers;
+			NowPlayingBlock.renderTicker( tickerInner, singers );
+		} );
+		NowPlayingBlock.startQueuePolling( restUrl );
 
 		// Start polling for admin-triggered actions (e.g. set-on-stage).
 		if ( actionsUrl && venueSlug ) {
