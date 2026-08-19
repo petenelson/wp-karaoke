@@ -25,5 +25,9 @@ if ( file_exists( WPKQ_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 	require_once WPKQ_PLUGIN_DIR . 'vendor/autoload.php';
 }
 
+// Role and capability lifecycle.
+register_activation_hook( __FILE__, [ \WPKQ\Capabilities::class, 'register' ] );
+register_deactivation_hook( __FILE__, [ \WPKQ\Capabilities::class, 'remove' ] );
+
 // Initialize the plugin.
 \WPKQ\Core::instance()->init();

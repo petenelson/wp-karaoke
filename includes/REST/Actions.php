@@ -215,7 +215,7 @@ class Actions {
 	 * @return bool|\WP_Error
 	 */
 	public function admin_permissions_check() {
-		if ( ! is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
+		if ( ! is_user_logged_in() || ! current_user_can( \WPKQ\Capabilities::CAP ) ) {
 			return new \WP_Error(
 				'rest_forbidden',
 				__( 'You do not have permission to create actions.', 'wp-karaoke' ),

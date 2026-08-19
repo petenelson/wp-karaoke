@@ -7,6 +7,7 @@
 
 namespace WPKQ\Admin;
 
+use WPKQ\Capabilities;
 use WPKQ\PostType\Venue;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -20,11 +21,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class QueueAdmin {
 
-	/**
-	 * Admin page slug.
-	 *
-	 * @var string
-	 */
+	/** Top-level admin menu slug. */
+	const MENU_SLUG = 'wpkq-karaoke';
+
+	/** Queue management page slug. */
 	const PAGE_SLUG = 'wpkq-manage-queue';
 
 	/**
@@ -55,17 +55,97 @@ class QueueAdmin {
 	}
 
 	/**
-	 * Register the admin menu page.
+	 * Register the admin menu pages.
+	 *
+	 * Adds a top-level "Karaoke" entry visible to karaoke hosts that leads to
+	 * a venue picker (or redirects directly when only one venue exists).
+	 * The queue management page itself stays hidden from the menu sidebar.
 	 */
 	public function register_admin_page() {
+		// Admins navigate to queue management via the Karaoke Venues post type list.
+		if ( ! current_user_can( 'manage_options' ) ) {
+			add_menu_page(
+				__( 'Karaoke', 'wp-karaoke' ),
+				__( 'Karaoke', 'wp-karaoke' ),
+				Capabilities::CAP,
+				self::MENU_SLUG,
+				[ $this, 'render_venue_picker' ],
+				'dashicons-playlist-audio',
+				30
+			);
+		}
+
 		add_submenu_page(
-			'none', // No parent — hidden from menu, accessible via URL.
+			'none', // Hidden from sidebar; reached via the venue picker or direct URL.
 			__( 'Manage Queue', 'wp-karaoke' ),
 			__( 'Manage Queue', 'wp-karaoke' ),
-			'manage_options',
+			Capabilities::CAP,
 			self::PAGE_SLUG,
 			[ $this, 'render_page' ]
 		);
+	}
+
+	/**
+	 * Render the venue picker page.
+	 *
+	 * Shows a list of published top-level venues with links to their queue pages.
+	 */
+	public function render_venue_picker(): void {
+		if ( ! current_user_can( Capabilities::CAP ) ) {
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-karaoke' ) );
+		}
+
+		// Get the top-level posts. We only want to show venues here, not their child posts.
+		$venues = get_posts(
+			[
+				'post_type'      => 'karaoke-venue',
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+				'post_parent'    => 0,
+			]
+		);
+
+		?>
+		<style>
+			/* Hide admin notices on the venue picker page for a cleaner look. */
+			.notice {
+				display: none;
+			}
+		</style>
+
+		<div class="wrap wpkq-venue-picker">
+			<h1><?php esc_html_e( 'Karaoke Venues', 'wp-karaoke' ); ?></h1>
+			<?php if ( empty( $venues ) ) : ?>
+				<p><?php esc_html_e( 'No karaoke venues found. Ask an administrator to set one up.', 'wp-karaoke' ); ?></p>
+			<?php else : ?>
+				<?php foreach ( $venues as $venue ) : ?>
+					<p>
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&slug=' . rawurlencode( $venue->post_name ) ) ); ?>"><?php echo esc_html( trim( $venue->post_title ) ); ?></a>
+						<?php
+						// Show child posts (e.g. past events) indented under the venue.
+						$child_posts = get_posts(
+							[
+								'post_type'      => 'karaoke-venue',
+								'post_status'    => 'publish',
+								'posts_per_page' => -1,
+								'orderby'        => 'date',
+								'order'          => 'DESC',
+								'post_parent'    => $venue->ID,
+							]
+						);
+						foreach ( $child_posts as $child ) :
+							?>
+								| <a href="<?php echo esc_url( get_permalink( $child->ID ) ); ?>" target="_blank" rel="noopener">
+									<?php echo esc_html( $child->post_title ); ?>
+								</a>
+						<?php endforeach; ?>
+					</p>
+				<?php endforeach; ?>
+			<?php endif; ?>
+		</div>
+		<?php
 	}
 
 	/**
@@ -106,7 +186,8 @@ class QueueAdmin {
 		);
 
 		// Pass data to JS.
-		$slug = isset( $_GET['slug'] ) ? sanitize_title( wp_unslash( $_GET['slug'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$params = filter_var_array( $_GET, [ 'slug' => FILTER_DEFAULT ] ); // phpcs:ignore WordPress.Security.NonceVerification
+		$slug   = sanitize_title( wp_unslash( (string) ( $params['slug'] ?? '' ) ) );
 
 		wp_localize_script(
 			'wpkq-admin',
@@ -141,11 +222,12 @@ class QueueAdmin {
 	 * Render the admin page.
 	 */
 	public function render_page() {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( Capabilities::CAP ) ) {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-karaoke' ) );
 		}
 
-		$slug = isset( $_GET['slug'] ) ? sanitize_title( wp_unslash( $_GET['slug'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$params = filter_var_array( $_GET, [ 'slug' => FILTER_DEFAULT ] ); // phpcs:ignore WordPress.Security.NonceVerification
+		$slug   = sanitize_title( wp_unslash( (string) ( $params['slug'] ?? '' ) ) );
 
 		if ( empty( $slug ) ) {
 			wp_die( esc_html__( 'No venue specified.', 'wp-karaoke' ) );

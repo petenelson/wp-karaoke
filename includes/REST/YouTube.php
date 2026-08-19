@@ -110,7 +110,7 @@ class YouTube {
 	 * @return bool|\WP_Error
 	 */
 	public function permissions_check(): bool|\WP_Error {
-		if ( ! is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
+		if ( ! is_user_logged_in() || ! current_user_can( \WPKQ\Capabilities::CAP ) ) {
 			return new \WP_Error(
 				'rest_forbidden',
 				__( 'You do not have permission to search YouTube.', 'wp-karaoke' ),
