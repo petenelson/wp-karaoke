@@ -5,7 +5,8 @@
  */
 
 .wpkq-monitor-editor-preview {
-	background: #1a1a1a;
+	position: relative; /* Anchors the progress bar preview. */
+	background: var( --wpkq-monitor-bg, #1a1a1a );
 	color: #fff;
 	padding: 24px;
 	text-align: center;
@@ -20,6 +21,12 @@
 	margin: 0;
 	font-size: 14px;
 	line-height: 1.5;
+}
+
+/* Static progress bar preview so editors can see the progress bar color. */
+.wpkq-monitor-editor-preview .wpkq-monitor-editor-preview__progress-bar {
+	width: 40%;
+	transition: none;
 }
 
 .wpkq-monitor-editor-preview__ticker {

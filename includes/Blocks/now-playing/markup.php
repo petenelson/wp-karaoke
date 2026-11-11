@@ -38,26 +38,7 @@ $cookie_name = NowPlaying::get_cookie_name( $venue_slug );
 $is_authorized = isset( $_COOKIE[ $cookie_name ] ) &&
 	hash_equals( md5( $password ), $_COOKIE[ $cookie_name ] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_md5
 
-// Map color attributes to the CSS custom properties used in style.css.
-$color_vars = [
-	'monitorBackgroundColor'       => '--wpkq-monitor-bg',
-	'progressBarColor'             => '--wpkq-progress-bar-color',
-	'tickerBackgroundColor'        => '--wpkq-ticker-bg',
-	'tickerItemBackgroundColor'    => '--wpkq-ticker-item-bg',
-	'tickerItemTextColor'          => '--wpkq-ticker-item-color',
-	'tickerOnStageBackgroundColor' => '--wpkq-ticker-on-stage-bg',
-	'tickerOnStageTextColor'       => '--wpkq-ticker-on-stage-color',
-];
-
-$inline_style = '';
-
-foreach ( $color_vars as $attribute => $css_var ) {
-	$color = isset( $attributes[ $attribute ] ) ? sanitize_hex_color( $attributes[ $attribute ] ) : '';
-
-	if ( ! empty( $color ) ) {
-		$inline_style .= $css_var . ':' . $color . ';';
-	}
-}
+$inline_style = NowPlaying::get_color_style( $attributes );
 
 $wrapper_attributes = [ 'class' => 'wpkq-monitor' ];
 

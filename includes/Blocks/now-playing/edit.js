@@ -23,17 +23,12 @@ import { useSelect } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 
 /**
- * Maps ticker color attributes to the CSS custom properties used in style.css.
+ * Maps color attributes to the CSS custom properties used in style.css.
+ * Localized from NowPlaying::COLOR_CSS_VARS so the editor and front end match.
  *
  * @type {Object<string, string>}
  */
-const TICKER_COLOR_VARS = {
-	tickerBackgroundColor: '--wpkq-ticker-bg',
-	tickerItemBackgroundColor: '--wpkq-ticker-item-bg',
-	tickerItemTextColor: '--wpkq-ticker-item-color',
-	tickerOnStageBackgroundColor: '--wpkq-ticker-on-stage-bg',
-	tickerOnStageTextColor: '--wpkq-ticker-on-stage-color',
-};
+const COLOR_VARS = window.WPKQNowPlaying?.colorVars || {};
 
 /**
  * Singer names for the ticker preview, on-stage singer first. Localized from
@@ -47,23 +42,14 @@ const PREVIEW_SINGERS = ( window.WPKQNowPlaying?.fakeSingers || [] ).map(
 
 /**
  * Static (non-animated) preview of the upcoming singers ticker, so editors
- * can see the ticker colors. Uses the same markup and classes as view.js.
+ * can see the ticker colors. Uses the same markup and classes as view.js, and
+ * inherits the color custom properties set on the block wrapper.
  *
- * @param {Object} props            Component props.
- * @param {Object} props.attributes Block attributes.
  * @return {Element} Ticker preview.
  */
-function TickerPreview( { attributes } ) {
-	const style = {};
-
-	Object.entries( TICKER_COLOR_VARS ).forEach( ( [ attribute, cssVar ] ) => {
-		if ( attributes[ attribute ] ) {
-			style[ cssVar ] = attributes[ attribute ];
-		}
-	} );
-
+function TickerPreview() {
 	return (
-		<div className="wpkq-monitor-editor-preview__ticker" style={ style }>
+		<div className="wpkq-monitor-editor-preview__ticker">
 			<div className="wpkq-monitor-editor-preview__notice">
 				{ __( 'Upcoming singers ticker preview:', 'wp-karaoke' ) }
 			</div>
@@ -109,17 +95,20 @@ export default function Edit( { attributes, setAttributes } ) {
 		password,
 		tickerQueueLimit,
 		showFakeSingersButton,
-		monitorBackgroundColor,
-		tickerBackgroundColor,
-		tickerItemBackgroundColor,
-		tickerItemTextColor,
-		tickerOnStageBackgroundColor,
-		tickerOnStageTextColor,
 	} = attributes;
+
+	// Set the same color custom properties the front end uses (see NowPlaying::get_color_style()).
+	const colorStyle = {};
+
+	Object.entries( COLOR_VARS ).forEach( ( [ attribute, cssVar ] ) => {
+		if ( attributes[ attribute ] ) {
+			colorStyle[ cssVar ] = attributes[ attribute ];
+		}
+	} );
 
 	const blockProps = useBlockProps( {
 		className: 'wpkq-monitor-editor-preview',
-		style: monitorBackgroundColor ? { background: monitorBackgroundColor } : undefined,
+		style: colorStyle,
 	} );
 
 	/**
@@ -228,6 +217,9 @@ export default function Edit( { attributes, setAttributes } ) {
 			</InspectorControls>
 
 			<div { ...blockProps }>
+				<div className="wpkq-monitor__progress" aria-hidden="true">
+					<div className="wpkq-monitor__progress-bar wpkq-monitor-editor-preview__progress-bar" />
+				</div>
 				<div className="wpkq-monitor-editor-preview__notice">
 					{ venueId
 						? __( 'Welcome screen content (shown before a video loads):', 'wp-karaoke' )
@@ -237,7 +229,7 @@ export default function Edit( { attributes, setAttributes } ) {
 					template={ [ [ 'core/paragraph', { placeholder: __( 'Add a welcome message…', 'wp-karaoke' ) } ] ] }
 					templateLock={ false }
 				/>
-				<TickerPreview attributes={ attributes } />
+				<TickerPreview />
 			</div>
 		</>
 	);

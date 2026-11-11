@@ -762,14 +762,12 @@ class Queue {
 	}
 
 	/**
-	 * Check permissions for the advance endpoint using the venue monitor cookie.
+	 * Look up a published venue and verify the request's monitor cookie for it.
 	 *
-	 * @param \WP_REST_Request $request Request object.
-	 * @return bool|\WP_Error
+	 * @param string $slug Venue slug.
+	 * @return \WP_Post|\WP_Error The venue post on success, or an error.
 	 */
-	public function advance_permissions_check( \WP_REST_Request $request ) {
-		$slug = $request->get_param( 'slug' );
-
+	private function get_monitor_authorized_venue( string $slug ): \WP_Post|\WP_Error {
 		$posts = get_posts(
 			[
 				'name'           => $slug,
@@ -802,7 +800,19 @@ class Queue {
 			);
 		}
 
-		return true;
+		return $posts[0];
+	}
+
+	/**
+	 * Check permissions for the advance endpoint using the venue monitor cookie.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return bool|\WP_Error
+	 */
+	public function advance_permissions_check( \WP_REST_Request $request ) {
+		$venue = $this->get_monitor_authorized_venue( (string) $request->get_param( 'slug' ) );
+
+		return is_wp_error( $venue ) ? $venue : true;
 	}
 
 	/**
@@ -815,22 +825,13 @@ class Queue {
 	 * @return bool|\WP_Error
 	 */
 	public function seed_permissions_check( \WP_REST_Request $request ) {
-		$result = $this->advance_permissions_check( $request );
+		$venue = $this->get_monitor_authorized_venue( (string) $request->get_param( 'slug' ) );
 
-		if ( true !== $result ) {
-			return $result;
+		if ( is_wp_error( $venue ) ) {
+			return $venue;
 		}
 
-		$posts = get_posts(
-			[
-				'name'           => $request->get_param( 'slug' ),
-				'post_type'      => 'karaoke-venue',
-				'post_status'    => 'publish',
-				'posts_per_page' => 1,
-			]
-		);
-
-		if ( empty( $posts ) || '1' !== get_post_meta( $posts[0]->ID, NowPlaying::SEED_ENABLED_META_KEY, true ) ) {
+		if ( '1' !== get_post_meta( $venue->ID, NowPlaying::SEED_ENABLED_META_KEY, true ) ) {
 			return new \WP_Error(
 				'rest_forbidden',
 				__( 'Loading fake singers is not enabled for this venue.', 'wp-karaoke' ),

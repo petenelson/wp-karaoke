@@ -33,6 +33,24 @@ class NowPlaying {
 	const SEED_ENABLED_META_KEY = '_wpkq_seed_enabled';
 
 	/**
+	 * Maps the block's color attributes to the CSS custom properties used in style.css.
+	 *
+	 * Shared with the block editor (localized as WPKQNowPlaying.colorVars) so the
+	 * editor preview and the front end use the same mapping.
+	 *
+	 * @var array<string, string>
+	 */
+	const COLOR_CSS_VARS = [
+		'monitorBackgroundColor'       => '--wpkq-monitor-bg',
+		'progressBarColor'             => '--wpkq-progress-bar-color',
+		'tickerBackgroundColor'        => '--wpkq-ticker-bg',
+		'tickerItemBackgroundColor'    => '--wpkq-ticker-item-bg',
+		'tickerItemTextColor'          => '--wpkq-ticker-item-color',
+		'tickerOnStageBackgroundColor' => '--wpkq-ticker-on-stage-bg',
+		'tickerOnStageTextColor'       => '--wpkq-ticker-on-stage-color',
+	];
+
+	/**
 	 * Singleton instance.
 	 *
 	 * @var self|null
@@ -93,8 +111,56 @@ class NowPlaying {
 			'WPKQNowPlaying',
 			[
 				'fakeSingers' => self::get_fake_singers(),
+				'colorVars'   => self::COLOR_CSS_VARS,
 			]
 		);
+	}
+
+	/**
+	 * Sanitize a color value from the block's color settings.
+	 *
+	 * Accepts hex colors, rgb()/rgba()/hsl()/hsla() colors, and theme palette
+	 * preset variables (var(--wp--preset--color--{slug})).
+	 *
+	 * @param string $color Color value.
+	 * @return string The color, or an empty string if it is not an accepted format.
+	 */
+	public static function sanitize_color( string $color ): string {
+		$color = trim( $color );
+
+		if ( sanitize_hex_color( $color ) ) {
+			return $color;
+		}
+
+		if ( preg_match( '/^(rgb|rgba|hsl|hsla)\(\s*[0-9.%\s,\/+-]+\)$/i', $color ) ) {
+			return $color;
+		}
+
+		if ( preg_match( '/^var\(\s*--wp--preset--color--[a-z0-9-]+\s*\)$/i', $color ) ) {
+			return $color;
+		}
+
+		return '';
+	}
+
+	/**
+	 * Build the inline style of CSS custom properties for the block's color settings.
+	 *
+	 * @param array $attributes Block attributes.
+	 * @return string Inline style declarations, or an empty string when no colors are set.
+	 */
+	public static function get_color_style( array $attributes ): string {
+		$style = '';
+
+		foreach ( self::COLOR_CSS_VARS as $attribute => $css_var ) {
+			$color = isset( $attributes[ $attribute ] ) ? self::sanitize_color( (string) $attributes[ $attribute ] ) : '';
+
+			if ( '' !== $color ) {
+				$style .= $css_var . ':' . $color . ';';
+			}
+		}
+
+		return $style;
 	}
 
 	/**
