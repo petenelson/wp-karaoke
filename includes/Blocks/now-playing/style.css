@@ -98,6 +98,12 @@
 	background: var( --wpkq-monitor-bg, #000 );
 }
 
+/* Hide the cursor after the mouse has been idle (toggled by view.js). */
+.wpkq-monitor--cursor-hidden,
+.wpkq-monitor--cursor-hidden * {
+	cursor: none !important;
+}
+
 /* URL bar — lets the KJ paste a YouTube link to load a video. */
 .wpkq-monitor__url-bar {
 	flex-shrink: 0;
