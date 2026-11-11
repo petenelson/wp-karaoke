@@ -22,6 +22,14 @@
 	line-height: 1.5;
 }
 
+.wpkq-monitor-editor-preview__ticker {
+	margin-top: 24px;
+}
+
+.wpkq-monitor-editor-preview__ticker .wpkq-monitor__ticker-wrap {
+	margin-top: 8px;
+}
+
 .wpkq-monitor-editor-preview__notice--warning {
 	color: #ffd700;
 }

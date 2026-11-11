@@ -18,6 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 $venue_id           = isset( $attributes['venueId'] ) ? absint( $attributes['venueId'] ) : 0;
 $password           = isset( $attributes['password'] ) ? $attributes['password'] : '';
 $ticker_queue_limit = isset( $attributes['tickerQueueLimit'] ) ? absint( $attributes['tickerQueueLimit'] ) : 6;
+$show_seed_button   = ! empty( $attributes['showFakeSingersButton'] );
 
 // Block is not renderable without a venue and password configured.
 if ( ! $venue_id || '' === $password ) {
@@ -37,7 +38,34 @@ $cookie_name = NowPlaying::get_cookie_name( $venue_slug );
 $is_authorized = isset( $_COOKIE[ $cookie_name ] ) &&
 	hash_equals( md5( $password ), $_COOKIE[ $cookie_name ] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_md5
 
-$block_props = get_block_wrapper_attributes( [ 'class' => 'wpkq-monitor' ] );
+// Map color attributes to the CSS custom properties used in style.css.
+$color_vars = [
+	'monitorBackgroundColor'       => '--wpkq-monitor-bg',
+	'progressBarColor'             => '--wpkq-progress-bar-color',
+	'tickerBackgroundColor'        => '--wpkq-ticker-bg',
+	'tickerItemBackgroundColor'    => '--wpkq-ticker-item-bg',
+	'tickerItemTextColor'          => '--wpkq-ticker-item-color',
+	'tickerOnStageBackgroundColor' => '--wpkq-ticker-on-stage-bg',
+	'tickerOnStageTextColor'       => '--wpkq-ticker-on-stage-color',
+];
+
+$inline_style = '';
+
+foreach ( $color_vars as $attribute => $css_var ) {
+	$color = isset( $attributes[ $attribute ] ) ? sanitize_hex_color( $attributes[ $attribute ] ) : '';
+
+	if ( ! empty( $color ) ) {
+		$inline_style .= $css_var . ':' . $color . ';';
+	}
+}
+
+$wrapper_attributes = [ 'class' => 'wpkq-monitor' ];
+
+if ( '' !== $inline_style ) {
+	$wrapper_attributes['style'] = $inline_style;
+}
+
+$block_props = get_block_wrapper_attributes( $wrapper_attributes );
 
 if ( ! $is_authorized ) {
 	$has_error = isset( $_GET['wpkq_auth_error'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['wpkq_auth_error'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
@@ -97,9 +125,11 @@ $rest_url = esc_url_raw( rest_url( 'wpkq/v1/queue?slug=' . rawurlencode( $venue_
 	data-advance-url="<?php echo esc_attr( esc_url_raw( rest_url( 'wpkq/v1/queue/advance' ) ) ); ?>"
 	data-actions-url="<?php echo esc_attr( esc_url_raw( rest_url( 'wpkq/v1/actions' ) ) ); ?>"
 	data-ticker-queue-limit="<?php echo esc_attr( $ticker_queue_limit ); ?>"
+	<?php if ( $show_seed_button ) : ?>
 	data-seed-url="<?php echo esc_attr( esc_url_raw( rest_url( 'wpkq/v1/queue/seed' ) ) ); ?>"
+	<?php endif; ?>
 >
-	<?php if ( in_array( wp_get_environment_type(), [ 'local', 'development' ], true ) ) : ?>
+	<?php if ( $show_seed_button ) : ?>
 	<div class="wpkq-monitor__dev-tools">
 		<button type="button" class="wpkq-monitor__seed-btn" id="wpkq-seed-btn">
 			<?php esc_html_e( 'Load Fake Singers', 'wp-karaoke' ); ?>

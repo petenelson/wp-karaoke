@@ -26,6 +26,13 @@ class NowPlaying {
 	const PASSWORD_META_KEY = '_wpkq_monitor_password';
 
 	/**
+	 * Post meta key that flags whether the "Load Fake Singers" button is enabled for the venue.
+	 *
+	 * @var string
+	 */
+	const SEED_ENABLED_META_KEY = '_wpkq_seed_enabled';
+
+	/**
 	 * Singleton instance.
 	 *
 	 * @var self|null
@@ -49,6 +56,7 @@ class NowPlaying {
 	 */
 	public function register() {
 		add_action( 'init', [ $this, 'register_block' ] );
+		add_action( 'enqueue_block_editor_assets', [ $this, 'localize_editor_script' ] );
 		add_filter( 'body_class', [ $this, 'add_body_class' ] );
 		add_action( 'admin_post_wpkq_verify_password', [ $this, 'handle_password_verification' ] );
 		add_action( 'admin_post_nopriv_wpkq_verify_password', [ $this, 'handle_password_verification' ] );
@@ -74,6 +82,109 @@ class NowPlaying {
 	 */
 	public function register_block() {
 		register_block_type( WPKQ_PLUGIN_DIR . 'includes/Blocks/now-playing/' );
+	}
+
+	/**
+	 * Pass the fake singers to the block editor script for the ticker preview.
+	 */
+	public function localize_editor_script() {
+		wp_localize_script(
+			generate_block_asset_handle( 'wp-karaoke/now-playing', 'editorScript' ),
+			'WPKQNowPlaying',
+			[
+				'fakeSingers' => self::get_fake_singers(),
+			]
+		);
+	}
+
+	/**
+	 * Get the fake singers used by the "Load Fake Singers" button and the editor ticker preview.
+	 *
+	 * The first singer is placed on stage; the rest are added to the queue in order.
+	 *
+	 * @return array[] List of singers, each with `singer_name`, `song`, `artist`, and `youtube_url`.
+	 */
+	public static function get_fake_singers(): array {
+		$fake_singers = [
+			[
+				'singer_name' => 'Ripley',
+				'song'        => "Don't Stop Believin'",
+				'artist'      => 'Journey',
+				'youtube_url' => 'https://www.youtube.com/watch?v=VcjzHMhBtf0',
+			],
+			[
+				'singer_name' => 'Hicks',
+				'song'        => 'Bohemian Rhapsody',
+				'artist'      => 'Queen',
+				'youtube_url' => 'https://www.youtube.com/watch?v=JNo3T5vz_zE',
+			],
+			[
+				'singer_name' => 'Hudson',
+				'song'        => 'Sweet Caroline',
+				'artist'      => 'Neil Diamond',
+				'youtube_url' => 'https://www.youtube.com/watch?v=1ijnZnYIqL0',
+			],
+			[
+				'singer_name' => 'Vasquez',
+				'song'        => 'Livin on a Prayer',
+				'artist'      => 'Bon Jovi',
+				'youtube_url' => 'https://www.youtube.com/watch?v=lDK9QqIzhwk',
+			],
+			[
+				'singer_name' => 'Bishop',
+				'song'        => 'Total Eclipse of the Heart',
+				'artist'      => 'Bonnie Tyler',
+				'youtube_url' => 'https://www.youtube.com/watch?v=Q-PfOnqA-Kw',
+			],
+			[
+				'singer_name' => 'Newt',
+				'song'        => 'Mr. Brightside',
+				'artist'      => 'The Killers',
+				'youtube_url' => 'https://www.youtube.com/watch?v=GmB0VtPggOE',
+			],
+			[
+				'singer_name' => 'Burke',
+				'song'        => 'Since U Been Gone',
+				'artist'      => 'Kelly Clarkson',
+				'youtube_url' => 'https://www.youtube.com/watch?v=R7UrFYvl5TE',
+			],
+			[
+				'singer_name' => 'Apone',
+				'song'        => 'Africa',
+				'artist'      => 'Toto',
+				'youtube_url' => 'https://www.youtube.com/watch?v=FTQbiNvZqaY',
+			],
+		];
+
+		/**
+		 * Filters the fake singers used by the "Load Fake Singers" button and the editor ticker preview.
+		 *
+		 * The first singer is placed on stage; the rest are added to the queue in order.
+		 *
+		 * @param array[] $fake_singers List of singers, each with `singer_name`, `song`, `artist`, and `youtube_url`.
+		 */
+		$filtered = apply_filters( 'wpkq_fake_singers', $fake_singers );
+
+		if ( ! is_array( $filtered ) ) {
+			return $fake_singers;
+		}
+
+		$normalized = [];
+
+		foreach ( $filtered as $singer ) {
+			if ( ! is_array( $singer ) || empty( $singer['singer_name'] ) ) {
+				continue;
+			}
+
+			$normalized[] = [
+				'singer_name' => sanitize_text_field( $singer['singer_name'] ),
+				'song'        => sanitize_text_field( $singer['song'] ?? '' ),
+				'artist'      => sanitize_text_field( $singer['artist'] ?? '' ),
+				'youtube_url' => esc_url_raw( $singer['youtube_url'] ?? '' ),
+			];
+		}
+
+		return $normalized;
 	}
 
 	/**
@@ -153,10 +264,10 @@ class NowPlaying {
 	}
 
 	/**
-	 * Sync the block's password attribute to the venue's post meta on save.
+	 * Sync the block's password and "Load Fake Singers" toggle to the venue's post meta on save.
 	 *
-	 * This allows the password form handler to validate without parsing block
-	 * content at request time.
+	 * This allows the password form handler and the seed endpoint to validate
+	 * without parsing block content at request time.
 	 *
 	 * @param int      $post_id Post ID.
 	 * @param \WP_Post $post    Post object.
@@ -182,6 +293,14 @@ class NowPlaying {
 
 			if ( $venue_id && '' !== $password ) {
 				update_post_meta( $venue_id, self::PASSWORD_META_KEY, $password );
+			}
+
+			if ( $venue_id ) {
+				if ( ! empty( $block['attrs']['showFakeSingersButton'] ) ) {
+					update_post_meta( $venue_id, self::SEED_ENABLED_META_KEY, '1' );
+				} else {
+					delete_post_meta( $venue_id, self::SEED_ENABLED_META_KEY );
+				}
 			}
 
 			break;

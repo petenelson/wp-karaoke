@@ -434,7 +434,7 @@ const NowPlayingBlock = {
 		apiScript.src   = 'https://www.youtube.com/iframe_api';
 		document.head.appendChild( apiScript );
 
-		// Seed the queue with fake singers (local/dev only).
+		// Seed the queue with fake singers (when enabled in the block settings).
 		if ( seedBtn ) {
 			const seedUrl = wrapper.dataset.seedUrl;
 			seedBtn.addEventListener( 'click', () => {

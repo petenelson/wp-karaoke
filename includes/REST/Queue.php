@@ -171,25 +171,23 @@ class Queue {
 			]
 		);
 
-		// POST /wpkq/v1/queue/seed — load fake singers (local/dev only).
-		if ( in_array( wp_get_environment_type(), [ 'local', 'development' ], true ) ) {
-			register_rest_route(
-				self::NAMESPACE,
-				self::ROUTE . '/seed',
-				[
-					'methods'             => \WP_REST_Server::CREATABLE,
-					'callback'            => [ $this, 'seed_queue' ],
-					'permission_callback' => [ $this, 'advance_permissions_check' ],
-					'args'                => [
-						'slug' => [
-							'required'          => true,
-							'type'              => 'string',
-							'sanitize_callback' => 'sanitize_title',
-						],
+		// POST /wpkq/v1/queue/seed — load fake singers (when enabled in the Now Playing block).
+		register_rest_route(
+			self::NAMESPACE,
+			self::ROUTE . '/seed',
+			[
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => [ $this, 'seed_queue' ],
+				'permission_callback' => [ $this, 'seed_permissions_check' ],
+				'args'                => [
+					'slug' => [
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_title',
 					],
-				]
-			);
-		}
+				],
+			]
+		);
 
 		// POST /wpkq/v1/queue/advance — monitor: advance to next singer.
 		register_rest_route(
@@ -634,9 +632,9 @@ class Queue {
 	}
 
 	/**
-	 * POST /wpkq/v1/queue/seed (local/dev only)
+	 * POST /wpkq/v1/queue/seed (only when enabled in the Now Playing block)
 	 *
-	 * Replaces the queue with a set of hardcoded fake singers for local testing.
+	 * Replaces the queue with the fake singers from NowPlaying::get_fake_singers(), for testing.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response|\WP_Error
@@ -652,96 +650,22 @@ class Queue {
 		$post_id = $result['post_id'];
 		$now     = time();
 
-		$fake_singers = [
-			[
+		$fake_singers = [];
+
+		foreach ( NowPlaying::get_fake_singers() as $index => $fake_singer ) {
+			$fake_singers[] = [
 				'id'               => wp_generate_password( 10, false, false ),
-				'singer_name'      => 'Ripley',
-				'song'             => "Don't Stop Believin'",
-				'artist'           => 'Journey',
-				'youtube_url'      => 'https://www.youtube.com/watch?v=VcjzHMhBtf0',
+				'singer_name'      => $fake_singer['singer_name'],
+				'song'             => $fake_singer['song'],
+				'artist'           => $fake_singer['artist'],
+				'youtube_url'      => $fake_singer['youtube_url'],
 				'youtube_playable' => null,
-				'signup_time'      => $now - 3600,
+				'signup_time'      => $now - 3600 + ( $index * 300 ),
 				'completed_time'   => 0,
-				'status'           => 'on-stage',
-			],
-			[
-				'id'               => wp_generate_password( 10, false, false ),
-				'singer_name'      => 'Hicks',
-				'song'             => 'Bohemian Rhapsody',
-				'artist'           => 'Queen',
-				'youtube_url'      => 'https://www.youtube.com/watch?v=JNo3T5vz_zE',
-				'youtube_playable' => null,
-				'signup_time'      => $now - 3300,
-				'completed_time'   => 0,
-				'status'           => 'in-the-queue',
-			],
-			[
-				'id'               => wp_generate_password( 10, false, false ),
-				'singer_name'      => 'Hudson',
-				'song'             => 'Sweet Caroline',
-				'artist'           => 'Neil Diamond',
-				'youtube_url'      => 'https://www.youtube.com/watch?v=1ijnZnYIqL0',
-				'youtube_playable' => null,
-				'signup_time'      => $now - 3000,
-				'completed_time'   => 0,
-				'status'           => 'in-the-queue',
-			],
-			[
-				'id'               => wp_generate_password( 10, false, false ),
-				'singer_name'      => 'Vasquez',
-				'song'             => 'Livin on a Prayer',
-				'artist'           => 'Bon Jovi',
-				'youtube_url'      => 'https://www.youtube.com/watch?v=lDK9QqIzhwk',
-				'youtube_playable' => null,
-				'signup_time'      => $now - 2700,
-				'completed_time'   => 0,
-				'status'           => 'in-the-queue',
-			],
-			[
-				'id'               => wp_generate_password( 10, false, false ),
-				'singer_name'      => 'Bishop',
-				'song'             => 'Total Eclipse of the Heart',
-				'artist'           => 'Bonnie Tyler',
-				'youtube_url'      => 'https://www.youtube.com/watch?v=Q-PfOnqA-Kw',
-				'youtube_playable' => null,
-				'signup_time'      => $now - 2400,
-				'completed_time'   => 0,
-				'status'           => 'in-the-queue',
-			],
-			[
-				'id'               => wp_generate_password( 10, false, false ),
-				'singer_name'      => 'Newt',
-				'song'             => 'Mr. Brightside',
-				'artist'           => 'The Killers',
-				'youtube_url'      => 'https://www.youtube.com/watch?v=GmB0VtPggOE',
-				'youtube_playable' => null,
-				'signup_time'      => $now - 2100,
-				'completed_time'   => 0,
-				'status'           => 'in-the-queue',
-			],
-			[
-				'id'               => wp_generate_password( 10, false, false ),
-				'singer_name'      => 'Burke',
-				'song'             => 'Since U Been Gone',
-				'artist'           => 'Kelly Clarkson',
-				'youtube_url'      => 'https://www.youtube.com/watch?v=R7UrFYvl5TE',
-				'youtube_playable' => null,
-				'signup_time'      => $now - 1800,
-				'completed_time'   => 0,
-				'status'           => 'in-the-queue',
-			],
-			[
-				'id'               => wp_generate_password( 10, false, false ),
-				'singer_name'      => 'Apone',
-				'song'             => 'Africa',
-				'artist'           => 'Toto',
-				'youtube_url'      => 'https://www.youtube.com/watch?v=FTQbiNvZqaY',
-				'youtube_playable' => null,
-				'signup_time'      => $now - 1500,
-				'completed_time'   => 0,
-				'status'           => 'in-the-queue',
-			],
-		];
+				// The first fake singer starts on stage; the rest wait in the queue.
+				'status'           => 0 === $index ? 'on-stage' : 'in-the-queue',
+			];
+		}
 
 		Venue::delete_all_new_singers( $post_id );
 		$saved = Venue::save_queue( $post_id, $fake_singers );
@@ -874,6 +798,42 @@ class Queue {
 			return new \WP_Error(
 				'rest_forbidden',
 				__( 'Invalid monitor credentials.', 'wp-karaoke' ),
+				[ 'status' => 403 ]
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Check permissions for the seed endpoint.
+	 *
+	 * Requires valid monitor credentials and the "Load Fake Singers" toggle
+	 * to be enabled in the venue's Now Playing block.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return bool|\WP_Error
+	 */
+	public function seed_permissions_check( \WP_REST_Request $request ) {
+		$result = $this->advance_permissions_check( $request );
+
+		if ( true !== $result ) {
+			return $result;
+		}
+
+		$posts = get_posts(
+			[
+				'name'           => $request->get_param( 'slug' ),
+				'post_type'      => 'karaoke-venue',
+				'post_status'    => 'publish',
+				'posts_per_page' => 1,
+			]
+		);
+
+		if ( empty( $posts ) || '1' !== get_post_meta( $posts[0]->ID, NowPlaying::SEED_ENABLED_META_KEY, true ) ) {
+			return new \WP_Error(
+				'rest_forbidden',
+				__( 'Loading fake singers is not enabled for this venue.', 'wp-karaoke' ),
 				[ 'status' => 403 ]
 			);
 		}
