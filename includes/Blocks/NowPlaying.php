@@ -26,6 +26,31 @@ class NowPlaying {
 	const PASSWORD_META_KEY = '_wpkq_monitor_password';
 
 	/**
+	 * Post meta key that flags whether the "Load Fake Singers" button is enabled for the venue.
+	 *
+	 * @var string
+	 */
+	const SEED_ENABLED_META_KEY = '_wpkq_seed_enabled';
+
+	/**
+	 * Maps the block's color attributes to the CSS custom properties used in style.css.
+	 *
+	 * Shared with the block editor (localized as WPKQNowPlaying.colorVars) so the
+	 * editor preview and the front end use the same mapping.
+	 *
+	 * @var array<string, string>
+	 */
+	const COLOR_CSS_VARS = [
+		'monitorBackgroundColor'       => '--wpkq-monitor-bg',
+		'progressBarColor'             => '--wpkq-progress-bar-color',
+		'tickerBackgroundColor'        => '--wpkq-ticker-bg',
+		'tickerItemBackgroundColor'    => '--wpkq-ticker-item-bg',
+		'tickerItemTextColor'          => '--wpkq-ticker-item-color',
+		'tickerOnStageBackgroundColor' => '--wpkq-ticker-on-stage-bg',
+		'tickerOnStageTextColor'       => '--wpkq-ticker-on-stage-color',
+	];
+
+	/**
 	 * Singleton instance.
 	 *
 	 * @var self|null
@@ -49,6 +74,7 @@ class NowPlaying {
 	 */
 	public function register() {
 		add_action( 'init', [ $this, 'register_block' ] );
+		add_action( 'enqueue_block_editor_assets', [ $this, 'localize_editor_script' ] );
 		add_filter( 'body_class', [ $this, 'add_body_class' ] );
 		add_action( 'admin_post_wpkq_verify_password', [ $this, 'handle_password_verification' ] );
 		add_action( 'admin_post_nopriv_wpkq_verify_password', [ $this, 'handle_password_verification' ] );
@@ -74,6 +100,157 @@ class NowPlaying {
 	 */
 	public function register_block() {
 		register_block_type( WPKQ_PLUGIN_DIR . 'includes/Blocks/now-playing/' );
+	}
+
+	/**
+	 * Pass the fake singers to the block editor script for the ticker preview.
+	 */
+	public function localize_editor_script() {
+		wp_localize_script(
+			generate_block_asset_handle( 'wp-karaoke/now-playing', 'editorScript' ),
+			'WPKQNowPlaying',
+			[
+				'fakeSingers' => self::get_fake_singers(),
+				'colorVars'   => self::COLOR_CSS_VARS,
+			]
+		);
+	}
+
+	/**
+	 * Sanitize a color value from the block's color settings.
+	 *
+	 * Accepts hex colors, rgb()/rgba()/hsl()/hsla() colors, and theme palette
+	 * preset variables (var(--wp--preset--color--{slug})).
+	 *
+	 * @param string $color Color value.
+	 * @return string The color, or an empty string if it is not an accepted format.
+	 */
+	public static function sanitize_color( string $color ): string {
+		$color = trim( $color );
+
+		if ( sanitize_hex_color( $color ) ) {
+			return $color;
+		}
+
+		if ( preg_match( '/^(rgb|rgba|hsl|hsla)\(\s*[0-9.%\s,\/+-]+\)$/i', $color ) ) {
+			return $color;
+		}
+
+		if ( preg_match( '/^var\(\s*--wp--preset--color--[a-z0-9-]+\s*\)$/i', $color ) ) {
+			return $color;
+		}
+
+		return '';
+	}
+
+	/**
+	 * Build the inline style of CSS custom properties for the block's color settings.
+	 *
+	 * @param array $attributes Block attributes.
+	 * @return string Inline style declarations, or an empty string when no colors are set.
+	 */
+	public static function get_color_style( array $attributes ): string {
+		$style = '';
+
+		foreach ( self::COLOR_CSS_VARS as $attribute => $css_var ) {
+			$color = isset( $attributes[ $attribute ] ) ? self::sanitize_color( (string) $attributes[ $attribute ] ) : '';
+
+			if ( '' !== $color ) {
+				$style .= $css_var . ':' . $color . ';';
+			}
+		}
+
+		return $style;
+	}
+
+	/**
+	 * Get the fake singers used by the "Load Fake Singers" button and the editor ticker preview.
+	 *
+	 * The first singer is placed on stage; the rest are added to the queue in order.
+	 *
+	 * @return array[] List of singers, each with `singer_name`, `song`, `artist`, and `youtube_url`.
+	 */
+	public static function get_fake_singers(): array {
+		$fake_singers = [
+			[
+				'singer_name' => 'Ripley',
+				'song'        => 'You Are My Lucky Star',
+				'artist'      => 'Singing in the Rain',
+				'youtube_url' => 'https://www.youtube.com/watch?v=86DOsuQoado',
+			],
+			[
+				'singer_name' => 'Hicks',
+				'song'        => 'Frosty the Snowman',
+				'artist'      => 'Traditional',
+				'youtube_url' => 'https://www.youtube.com/watch?v=8hINXuDyyvs',
+			],
+			[
+				'singer_name' => 'Hudson',
+				'song'        => 'Danger Zone',
+				'artist'      => 'Kenny Loggins',
+				'youtube_url' => 'https://www.youtube.com/watch?v=_GytioD-eDs',
+			],
+			[
+				'singer_name' => 'Vasquez',
+				'song'        => 'We Will Rock You',
+				'artist'      => 'Queen',
+				'youtube_url' => 'https://www.youtube.com/watch?v=GZSJ0kRMKk4',
+			],
+			[
+				'singer_name' => 'Bishop',
+				'song'        => 'Mr Roboto',
+				'artist'      => 'Styx',
+				'youtube_url' => 'https://www.youtube.com/watch?v=kAfrhwb2uDU',
+			],
+			[
+				'singer_name' => 'Newt',
+				'song'        => 'I Will Survive',
+				'artist'      => 'Gloria Gaynor',
+				'youtube_url' => 'https://www.youtube.com/watch?v=ehqhfZvaPNM',
+			],
+			[
+				'singer_name' => 'Burke',
+				'song'        => "Money (That's What I Want)",
+				'artist'      => 'Barrett Strong',
+				'youtube_url' => 'https://www.youtube.com/watch?v=8t1nz4BKXdY',
+			],
+			[
+				'singer_name' => 'Apone',
+				'song'        => 'Fortunate Son',
+				'artist'      => 'Creedence Clearwater Revival',
+				'youtube_url' => 'https://www.youtube.com/watch?v=VEh9tS1jN5U',
+			],
+		];
+
+		/**
+		 * Filters the fake singers used by the "Load Fake Singers" button and the editor ticker preview.
+		 *
+		 * The first singer is placed on stage; the rest are added to the queue in order.
+		 *
+		 * @param array[] $fake_singers List of singers, each with `singer_name`, `song`, `artist`, and `youtube_url`.
+		 */
+		$filtered = apply_filters( 'wpkq_fake_singers', $fake_singers );
+
+		if ( ! is_array( $filtered ) ) {
+			return $fake_singers;
+		}
+
+		$normalized = [];
+
+		foreach ( $filtered as $singer ) {
+			if ( ! is_array( $singer ) || empty( $singer['singer_name'] ) ) {
+				continue;
+			}
+
+			$normalized[] = [
+				'singer_name' => sanitize_text_field( $singer['singer_name'] ),
+				'song'        => sanitize_text_field( $singer['song'] ?? '' ),
+				'artist'      => sanitize_text_field( $singer['artist'] ?? '' ),
+				'youtube_url' => esc_url_raw( $singer['youtube_url'] ?? '' ),
+			];
+		}
+
+		return $normalized;
 	}
 
 	/**
@@ -153,10 +330,10 @@ class NowPlaying {
 	}
 
 	/**
-	 * Sync the block's password attribute to the venue's post meta on save.
+	 * Sync the block's password and "Load Fake Singers" toggle to the venue's post meta on save.
 	 *
-	 * This allows the password form handler to validate without parsing block
-	 * content at request time.
+	 * This allows the password form handler and the seed endpoint to validate
+	 * without parsing block content at request time.
 	 *
 	 * @param int      $post_id Post ID.
 	 * @param \WP_Post $post    Post object.
@@ -182,6 +359,14 @@ class NowPlaying {
 
 			if ( $venue_id && '' !== $password ) {
 				update_post_meta( $venue_id, self::PASSWORD_META_KEY, $password );
+			}
+
+			if ( $venue_id ) {
+				if ( ! empty( $block['attrs']['showFakeSingersButton'] ) ) {
+					update_post_meta( $venue_id, self::SEED_ENABLED_META_KEY, '1' );
+				} else {
+					delete_post_meta( $venue_id, self::SEED_ENABLED_META_KEY );
+				}
 			}
 
 			break;

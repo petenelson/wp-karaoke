@@ -31,6 +31,44 @@ const NowPlayingBlock = {
 	/** @type {HTMLElement|null} Progress bar fill element. */
 	progressBar: null,
 
+	/** @type {number} Milliseconds without mouse movement before the cursor is hidden. */
+	CURSOR_IDLE_MS: 3000,
+
+	/** @type {number|null} Timer that hides the cursor once the mouse is idle. */
+	cursorIdleTimer: null,
+
+	/**
+	 * Show the cursor and restart the idle timer that hides it again.
+	 *
+	 * @param {HTMLElement} wrapper Block wrapper element.
+	 */
+	resetCursorIdle: ( wrapper ) => {
+		wrapper.classList.remove( 'wpkq-monitor--cursor-hidden' );
+		clearTimeout( NowPlayingBlock.cursorIdleTimer );
+
+		NowPlayingBlock.cursorIdleTimer = setTimeout( () => {
+			wrapper.classList.add( 'wpkq-monitor--cursor-hidden' );
+		}, NowPlayingBlock.CURSOR_IDLE_MS );
+	},
+
+	/**
+	 * Hide the mouse cursor over the monitor after it has been idle for a while.
+	 *
+	 * Any mouse movement, click, or scroll shows it again. The YouTube iframe
+	 * controls its own cursor, so this only applies outside the video.
+	 *
+	 * @param {HTMLElement} wrapper Block wrapper element.
+	 */
+	initCursorIdle: ( wrapper ) => {
+		const reset = () => NowPlayingBlock.resetCursorIdle( wrapper );
+
+		[ 'mousemove', 'mousedown', 'wheel' ].forEach( ( eventName ) => {
+			document.addEventListener( eventName, reset, { passive: true } );
+		} );
+
+		reset();
+	},
+
 	/**
 	 * Extract a YouTube video ID from a URL or bare ID string.
 	 *
@@ -405,6 +443,11 @@ const NowPlayingBlock = {
 		const tickerInner = wrapper.querySelector( '.wpkq-monitor__ticker-inner' );
 		const seedBtn     = wrapper.querySelector( '#wpkq-seed-btn' );
 
+		// Hide the idle cursor on the authorized monitor (not on the password form).
+		if ( restUrl ) {
+			NowPlayingBlock.initCursorIdle( wrapper );
+		}
+
 		// -----------------------------------------------------------------------
 		// YouTube IFrame Player API
 		// -----------------------------------------------------------------------
@@ -434,7 +477,7 @@ const NowPlayingBlock = {
 		apiScript.src   = 'https://www.youtube.com/iframe_api';
 		document.head.appendChild( apiScript );
 
-		// Seed the queue with fake singers (local/dev only).
+		// Seed the queue with fake singers (when enabled in the block settings).
 		if ( seedBtn ) {
 			const seedUrl = wrapper.dataset.seedUrl;
 			seedBtn.addEventListener( 'click', () => {

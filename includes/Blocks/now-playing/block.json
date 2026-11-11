@@ -23,6 +23,38 @@
 		"tickerQueueLimit": {
 			"type": "integer",
 			"default": 6
+		},
+		"showFakeSingersButton": {
+			"type": "boolean",
+			"default": false
+		},
+		"monitorBackgroundColor": {
+			"type": "string",
+			"default": ""
+		},
+		"progressBarColor": {
+			"type": "string",
+			"default": ""
+		},
+		"tickerBackgroundColor": {
+			"type": "string",
+			"default": ""
+		},
+		"tickerItemBackgroundColor": {
+			"type": "string",
+			"default": ""
+		},
+		"tickerItemTextColor": {
+			"type": "string",
+			"default": ""
+		},
+		"tickerOnStageBackgroundColor": {
+			"type": "string",
+			"default": ""
+		},
+		"tickerOnStageTextColor": {
+			"type": "string",
+			"default": ""
 		}
 	},
 	"editorScript": "file:../../../dist/js/block-now-playing-editor.js",
