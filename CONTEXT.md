@@ -129,7 +129,7 @@ Controlled by the block's **Show singer status & wait estimate** toggle (`showSt
 
 **Estimate log:** the first time a singer is shown a given queue position, the status endpoint adds a `_wpkq_estimate_log` meta row (`id`, `time`, `position`, `wait_minutes`, `avg_seconds`, `on_stage_remaining`). A 12-hour transient per singer/position prevents duplicate rows from polling. Each row is its own meta entry, so logging never writes to the queue meta.
 
-**Reset archive:** `DELETE /wpkq/v1/queue` saves a snapshot of the full queue plus pending signups as a `_wpkq_queue_archive` meta row (`archived_time`, `queue`) before clearing, then deletes estimate-log rows and snapshots older than 30 days (filter `wpkq_history_retention_days`). New JSON meta rows are written with `wp_slash()` so escapes survive WordPress's unslashing.
+**Reset archive:** `DELETE /wpkq/v1/queue` saves a snapshot of the full queue plus pending signups as a `_wpkq_queue_archive` meta row (`archived_time`, `queue`) before clearing, then deletes estimate-log rows and snapshots older than 30 days (filter `wpkq_history_retention_days`). All JSON meta (queue, pending signups, log, archives) is written with `wp_slash()` so escaped quotes and backslashes survive WordPress's unslashing.
 
 **Wait estimate:** average song length = mean of `completed_time − stage_time` for the 10 most recent finished singers with plausible durations (60–900s); falls back to 300s (filter `wpkq_default_song_seconds`). Wait for position N = time remaining for the current on-stage singer (average minus elapsed, min 0) + (N − 1) × average, rounded up to minutes.
 

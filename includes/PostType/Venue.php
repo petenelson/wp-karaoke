@@ -300,7 +300,8 @@ class Venue {
 	 * @return bool True on success.
 	 */
 	public static function save_queue( $post_id, $queue ) {
-		return update_post_meta( $post_id, self::META_KEY, wp_json_encode( $queue ) );
+		// Meta functions unslash values, so slash the JSON to keep escaped quotes and backslashes intact.
+		return update_post_meta( $post_id, self::META_KEY, wp_slash( wp_json_encode( $queue ) ) );
 	}
 
 	/**
@@ -339,7 +340,8 @@ class Venue {
 	 * @return bool True on success.
 	 */
 	public static function save_new_singer( int $post_id, array $singer ): bool {
-		return (bool) update_post_meta( $post_id, self::NEW_SINGER_META_PREFIX . $singer['id'], wp_json_encode( $singer ) );
+		// Meta functions unslash values, so slash the JSON to keep escaped quotes and backslashes intact.
+		return (bool) update_post_meta( $post_id, self::NEW_SINGER_META_PREFIX . $singer['id'], wp_slash( wp_json_encode( $singer ) ) );
 	}
 
 	/**
