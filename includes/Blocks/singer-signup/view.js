@@ -40,12 +40,12 @@ const SingerSignupBlock = {
 	},
 
 	/**
-	 * Read the list of this browser's signup IDs for a venue.
+	 * Read the list of this browser's private signup status tokens for a venue.
 	 *
 	 * @param {string} slug Venue slug.
-	 * @return {string[]} Signup IDs.
+	 * @return {string[]} Status tokens.
 	 */
-	readSignupIds: ( slug ) => {
+	readSignupTokens: ( slug ) => {
 		const name  = SingerSignupBlock.SIGNUPS_COOKIE_PREFIX + slug;
 		const match = document.cookie.match( new RegExp( '(?:^|; )' + name + '=([^;]*)' ) );
 
@@ -54,38 +54,38 @@ const SingerSignupBlock = {
 		}
 
 		try {
-			const ids = JSON.parse( decodeURIComponent( match[ 1 ] ) );
-			return Array.isArray( ids ) ? ids.filter( ( id ) => /^[A-Za-z0-9]+$/.test( id ) ) : [];
+			const tokens = JSON.parse( decodeURIComponent( match[ 1 ] ) );
+			return Array.isArray( tokens ) ? tokens.filter( ( token ) => /^[A-Za-z0-9]+$/.test( token ) ) : [];
 		} catch ( err ) {
 			return [];
 		}
 	},
 
 	/**
-	 * Save the list of signup IDs for a venue. An empty list removes the cookie.
+	 * Save the list of status tokens for a venue. An empty list removes the cookie.
 	 *
-	 * @param {string}   slug Venue slug.
-	 * @param {string[]} ids  Signup IDs.
+	 * @param {string}   slug   Venue slug.
+	 * @param {string[]} tokens Status tokens.
 	 */
-	saveSignupIds: ( slug, ids ) => {
+	saveSignupTokens: ( slug, tokens ) => {
 		const name    = SingerSignupBlock.SIGNUPS_COOKIE_PREFIX + slug;
-		const ttl     = ids.length ? SingerSignupBlock.COOKIE_TTL * 1000 : -1000;
+		const ttl     = tokens.length ? SingerSignupBlock.COOKIE_TTL * 1000 : -1000;
 		const expires = new Date( Date.now() + ttl ).toUTCString();
-		const value   = encodeURIComponent( JSON.stringify( ids ) );
+		const value   = encodeURIComponent( JSON.stringify( tokens ) );
 
 		document.cookie = `${ name }=${ value }; expires=${ expires }; path=/; SameSite=Lax`;
 	},
 
 	/**
-	 * Add a signup ID for a venue, keeping only the most recent few.
+	 * Add a status token for a venue, keeping only the most recent few.
 	 *
-	 * @param {string} slug Venue slug.
-	 * @param {string} id   Signup ID.
+	 * @param {string} slug  Venue slug.
+	 * @param {string} token Status token.
 	 */
-	addSignupId: ( slug, id ) => {
-		const ids = SingerSignupBlock.readSignupIds( slug ).filter( ( existing ) => existing !== id );
-		ids.push( id );
-		SingerSignupBlock.saveSignupIds( slug, ids.slice( -SingerSignupBlock.MAX_SIGNUP_IDS ) );
+	addSignupToken: ( slug, token ) => {
+		const tokens = SingerSignupBlock.readSignupTokens( slug ).filter( ( existing ) => existing !== token );
+		tokens.push( token );
+		SingerSignupBlock.saveSignupTokens( slug, tokens.slice( -SingerSignupBlock.MAX_SIGNUP_IDS ) );
 	},
 
 	/**
@@ -148,9 +148,9 @@ const SingerSignupBlock = {
 	 */
 	refreshStatus: async ( ctx ) => {
 		const { statusEl, statusUrl, venueSlug } = ctx;
-		const ids = SingerSignupBlock.readSignupIds( venueSlug );
+		const requested = SingerSignupBlock.readSignupTokens( venueSlug );
 
-		if ( ! ids.length ) {
+		if ( ! requested.length ) {
 			statusEl.hidden = true;
 			statusEl.replaceChildren();
 			SingerSignupBlock.stopPolling( ctx );
@@ -159,9 +159,13 @@ const SingerSignupBlock = {
 
 		SingerSignupBlock.startPolling( ctx );
 
+		// Only the newest refresh may render, so a slow older response can't replace newer cards.
+		ctx.refreshSeq = ( ctx.refreshSeq || 0 ) + 1;
+		const seq      = ctx.refreshSeq;
+
 		let data;
 		try {
-			const params   = new URLSearchParams( { slug: venueSlug, ids: ids.join( ',' ) } );
+			const params   = new URLSearchParams( { slug: venueSlug, tokens: requested.join( ',' ) } );
 			const response = await fetch( `${ statusUrl }?${ params }` );
 
 			if ( ! response.ok ) {
@@ -174,21 +178,28 @@ const SingerSignupBlock = {
 			return;
 		}
 
-		const singers = Array.isArray( data.singers ) ? data.singers : [];
+		if ( seq !== ctx.refreshSeq ) {
+			return;
+		}
 
-		// Keep IDs that still exist and haven't finished; finished ones are shown one last time.
-		const remaining = singers
+		const singers = Array.isArray( data.singers ) ? data.singers : [];
+		const active  = singers
 			.filter( ( singer ) => 'finished' !== singer.status )
-			.map( ( singer ) => singer.id );
-		SingerSignupBlock.saveSignupIds( venueSlug, ids.filter( ( id ) => remaining.includes( id ) ) );
+			.map( ( singer ) => singer.token );
+
+		// Drop only tokens this request checked that are gone or finished (finished ones show one last
+		// time). Re-read the cookie so tokens added while the request was in flight are kept.
+		const drop    = requested.filter( ( token ) => ! active.includes( token ) );
+		const current = SingerSignupBlock.readSignupTokens( venueSlug ).filter( ( token ) => ! drop.includes( token ) );
+		SingerSignupBlock.saveSignupTokens( venueSlug, current );
 
 		// Show signups in the order they were made.
-		singers.sort( ( a, b ) => ids.indexOf( a.id ) - ids.indexOf( b.id ) );
+		singers.sort( ( a, b ) => requested.indexOf( a.token ) - requested.indexOf( b.token ) );
 
 		statusEl.replaceChildren( ...singers.map( SingerSignupBlock.buildStatusCard ) );
 		statusEl.hidden = ! singers.length;
 
-		if ( ! remaining.length ) {
+		if ( ! current.length ) {
 			SingerSignupBlock.stopPolling( ctx );
 		}
 	},
@@ -336,8 +347,8 @@ const SingerSignupBlock = {
 			SingerSignupBlock.saveSingerNameCookie( name );
 			SingerSignupBlock.showSuccess( form, successEl );
 
-			if ( statusEl && statusUrl && data.id ) {
-				SingerSignupBlock.addSignupId( venueSlug, data.id );
+			if ( statusEl && statusUrl && data.status_token ) {
+				SingerSignupBlock.addSignupToken( venueSlug, data.status_token );
 				SingerSignupBlock.refreshStatus( ctx );
 			}
 		} catch ( err ) {
@@ -373,7 +384,7 @@ const SingerSignupBlock = {
 			return;
 		}
 
-		const ctx = { form, successEl, errorEl, submitBtn, signupUrl, venueSlug, statusEl, statusUrl, pollTimer: null };
+		const ctx = { form, successEl, errorEl, submitBtn, signupUrl, venueSlug, statusEl, statusUrl, pollTimer: null, refreshSeq: 0 };
 
 		// Singer status is enabled in the block settings: show any existing signups and keep them fresh.
 		if ( statusUrl && statusEl ) {

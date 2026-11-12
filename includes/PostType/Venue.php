@@ -383,7 +383,7 @@ class Venue {
 	 * @return bool True on success.
 	 */
 	public static function add_estimate_log( int $post_id, array $entry ): bool {
-		return (bool) add_post_meta( $post_id, self::ESTIMATE_LOG_META_KEY, wp_json_encode( $entry ) );
+		return (bool) add_post_meta( $post_id, self::ESTIMATE_LOG_META_KEY, wp_slash( wp_json_encode( $entry ) ) );
 	}
 
 	/**
@@ -411,11 +411,14 @@ class Venue {
 		return (bool) add_post_meta(
 			$post_id,
 			self::QUEUE_ARCHIVE_META_KEY,
-			wp_json_encode(
-				[
-					'archived_time' => time(),
-					'queue'         => $queue,
-				]
+			// Meta functions unslash values, so slash the JSON to keep its escapes intact.
+			wp_slash(
+				wp_json_encode(
+					[
+						'archived_time' => time(),
+						'queue'         => $queue,
+					]
+				)
 			)
 		);
 	}
@@ -428,6 +431,35 @@ class Venue {
 	 */
 	public static function get_queue_archives( int $post_id ): array {
 		return self::decode_meta_rows( get_post_meta( $post_id, self::QUEUE_ARCHIVE_META_KEY ) );
+	}
+
+	/**
+	 * Delete estimate-log rows and queue snapshots older than the retention window.
+	 *
+	 * Keeps venue meta from growing without bound (all of a post's meta is loaded on
+	 * every queue read) and limits how long singer names are retained.
+	 * Retention defaults to 30 days, filterable via `wpkq_history_retention_days`.
+	 *
+	 * @param int $post_id Post ID.
+	 */
+	public static function prune_history( int $post_id ): void {
+		$days   = max( 1, absint( apply_filters( 'wpkq_history_retention_days', 30 ) ) );
+		$cutoff = time() - ( $days * DAY_IN_SECONDS );
+
+		$keys = [
+			self::ESTIMATE_LOG_META_KEY  => 'time',
+			self::QUEUE_ARCHIVE_META_KEY => 'archived_time',
+		];
+
+		foreach ( $keys as $meta_key => $time_field ) {
+			foreach ( get_post_meta( $post_id, $meta_key ) as $raw ) {
+				$data = is_string( $raw ) ? json_decode( $raw, true ) : null;
+
+				if ( ! is_array( $data ) || absint( $data[ $time_field ] ?? 0 ) < $cutoff ) {
+					delete_post_meta( $post_id, $meta_key, wp_slash( $raw ) );
+				}
+			}
+		}
 	}
 
 	/**

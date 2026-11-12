@@ -121,14 +121,15 @@ Fields: **Your Name** (required), **Song Title** (required), **Artist** (require
 ### Singer Status & Wait Estimate
 Controlled by the block's **Show singer status & wait estimate** toggle (`showStatus` attribute, default on). When off, the block behaves exactly as before: no status card, no cookie, no polling.
 
-- After a successful signup, the returned ID is added to a cookie `wpkq_signups_{slug}` (JSON array of up to 5 IDs, 6-hour TTL, `SameSite=Lax`).
+- Signup stores a private random `status_token` (20 chars) on the singer record and returns it. It is never included in the public `GET /queue` response.
+- The returned token is added to a cookie `wpkq_signups_{slug}` (JSON array of up to 5 tokens, 6-hour TTL, `SameSite=Lax`). After each refresh, only tokens that request checked and found gone or finished are dropped; the cookie is re-read first so a signup made during the request is kept.
 - A status area (`.wpkq-signup__status`, `aria-live="polite"`) above the form shows one card per signup, fetched from `GET /wpkq/v1/queue/status`. Cards return after a page reload.
-- Card messages by status: `kj-received` → waiting for the KJ; `in-the-queue` → "You're #N in line, about M min" (position 1 → "You're up next!"); `on-stage` → on stage; `finished` → thanks (shown once, then the ID is dropped from the cookie). IDs missing from the response (deleted or queue reset) are dropped.
+- Card messages by status: `kj-received` → waiting for the KJ; `in-the-queue` → "You're #N in line, about M min" (position 1 → "You're up next!"); `on-stage` → on stage; `finished` → thanks (shown once, then the ID is dropped from the cookie). Tokens missing from the response (deleted or queue reset) are dropped.
 - Polls every 20 seconds while any signups are active, skips ticks while the tab is hidden, and refreshes immediately when the tab becomes visible again.
 
 **Estimate log:** the first time a singer is shown a given queue position, the status endpoint adds a `_wpkq_estimate_log` meta row (`id`, `time`, `position`, `wait_minutes`, `avg_seconds`, `on_stage_remaining`). A 12-hour transient per singer/position prevents duplicate rows from polling. Each row is its own meta entry, so logging never writes to the queue meta.
 
-**Reset archive:** `DELETE /wpkq/v1/queue` saves a snapshot of the full queue plus pending signups as a `_wpkq_queue_archive` meta row (`archived_time`, `queue`) before clearing.
+**Reset archive:** `DELETE /wpkq/v1/queue` saves a snapshot of the full queue plus pending signups as a `_wpkq_queue_archive` meta row (`archived_time`, `queue`) before clearing, then deletes estimate-log rows and snapshots older than 30 days (filter `wpkq_history_retention_days`). New JSON meta rows are written with `wp_slash()` so escapes survive WordPress's unslashing.
 
 **Wait estimate:** average song length = mean of `completed_time − stage_time` for the 10 most recent finished singers with plausible durations (60–900s); falls back to 300s (filter `wpkq_default_song_seconds`). Wait for position N = time remaining for the current on-stage singer (average minus elapsed, min 0) + (N − 1) × average, rounded up to minutes.
 
@@ -136,7 +137,7 @@ Controlled by the block's **Show singer status & wait estimate** toggle (`showSt
 Submissions POST to `POST /wpkq/v1/queue/signup` (no auth required):
 - A singer ID is generated server-side (`wp_generate_password(10, false, false)`).
 - Status is always set to `kj-received`.
-- Returns `{ "success": true, "id": "..." }` — the new singer's ID, used by the status card. No other queue data is exposed.
+- Returns `{ "success": true, "id": "...", "status_token": "..." }`. The token is used by the status card. No other queue data is exposed.
 - The KJ sees the submission in the New Sign-Ups section and promotes it with "Add to Queue".
 
 ---
@@ -153,7 +154,7 @@ All routes use the namespace `wpkq/v1`. Routes that operate on a venue require a
 | PUT | `/wpkq/v1/queue/singer/{id}` | `manage_options` | Partial update of any singer field. Setting `status: on-stage` auto-reverts the prior on-stage singer to `in-the-queue`. |
 | DELETE | `/wpkq/v1/queue/singer/{id}` | `manage_options` | Remove a singer from the queue entirely. |
 | POST | `/wpkq/v1/queue/reorder` | `manage_options` | Reorder `in-the-queue` singers. Body: `{ slug, order: [id, id, ...] }`. |
-| POST | `/wpkq/v1/queue/signup` | Public | Public singer self-signup. Always sets `kj-received`. Returns `{ success: true, id }`. |
-| GET | `/wpkq/v1/queue/status` | Public | Status for specific singer IDs. Query: `slug`, `ids` (comma-separated, max 5). Returns `{ success, singers: [ { id, song, artist, status, position, wait_minutes } ] }`. Unknown IDs are omitted. Never returns other singers' names. |
+| POST | `/wpkq/v1/queue/signup` | Public | Public singer self-signup. Always sets `kj-received`. Returns `{ success: true, id, status_token }`. |
+| GET | `/wpkq/v1/queue/status` | Public | Status for private status tokens. Query: `slug`, `tokens` (comma-separated, max 5). Returns `{ success, singers: [ { token, song, artist, status, position, wait_minutes } ] }`. Unknown tokens are omitted. Public singer IDs are not accepted. |
 | GET | `/wpkq/v1/queue/report` | `manage_options` | Analysis dump for a venue: `queue` (all fields), `pending` signups, `estimate_log`, and `archives` (queue snapshots saved on reset). Works with application passwords. |
 | POST | `/wpkq/v1/queue/advance` | Monitor cookie | Mark the current `on-stage` singer as `finished` and promote a singer by ID to `on-stage`. Used by the monitor ticker click handler. |

@@ -29,8 +29,8 @@ Refer to [10up Engineering Best Practices](https://10up.github.io/Engineering-Be
 | PUT | `/wpkq/v1/queue/singer/{id}` | `manage_options` | Update singer fields (partial update; setting `on-stage` auto-reverts prior on-stage singer) |
 | DELETE | `/wpkq/v1/queue/singer/{id}` | `manage_options` | Delete a singer |
 | POST | `/wpkq/v1/queue/reorder` | `manage_options` | Reorder `in-the-queue` singers by ID array |
-| POST | `/wpkq/v1/queue/signup` | Public | Public singer self-signup; always sets `kj-received`; returns `{ success: true, id }` |
-| GET | `/wpkq/v1/queue/status` | Public | Status, queue position, and wait estimate for specific singer IDs (`ids`, comma-separated, max 5); never returns other singers' names |
+| POST | `/wpkq/v1/queue/signup` | Public | Public singer self-signup; always sets `kj-received`; returns `{ success: true, id, status_token }` |
+| GET | `/wpkq/v1/queue/status` | Public | Status, queue position, and wait estimate for private status tokens (`tokens`, comma-separated, max 5). Public singer IDs are not accepted |
 | GET | `/wpkq/v1/queue/report` | `manage_options` | Analysis dump: full queue, pending signups, wait-estimate log, and queue snapshots saved on reset |
 | POST | `/wpkq/v1/queue/advance` | Cookie | Monitor: mark current on-stage as finished, promote singer by ID |
 

@@ -43,11 +43,11 @@ class Queue {
 	const DEFAULT_SONG_SECONDS = 300;
 
 	/**
-	 * Maximum number of singer IDs accepted by the status endpoint.
+	 * Maximum number of status tokens accepted by the status endpoint.
 	 *
 	 * @var int
 	 */
-	const MAX_STATUS_IDS = 5;
+	const MAX_STATUS_TOKENS = 5;
 
 	/**
 	 * Singleton instance.
@@ -196,11 +196,11 @@ class Queue {
 				'args'                => array_merge(
 					$this->get_slug_arg(),
 					[
-						'ids' => [
+						'tokens' => [
 							'required'          => true,
 							'type'              => 'string',
 							'sanitize_callback' => 'sanitize_text_field',
-							'description'       => __( 'Comma-separated list of singer IDs.', 'wp-karaoke' ),
+							'description'       => __( 'Comma-separated list of private status tokens returned by signup.', 'wp-karaoke' ),
 						],
 					]
 				),
@@ -687,6 +687,7 @@ class Queue {
 
 		// Keep a snapshot of the night for later analysis before clearing.
 		Venue::archive_queue( $post_id, array_merge( $result['queue'], Venue::get_new_singers( $post_id ) ) );
+		Venue::prune_history( $post_id );
 
 		$saved = Venue::save_queue( $post_id, [] );
 
@@ -944,6 +945,8 @@ class Queue {
 			'completed_time' => 0,
 			'stage_time'     => 0,
 			'status'         => 'kj-received',
+			// Private token for the status endpoint. Never returned by the public queue endpoint.
+			'status_token'   => wp_generate_password( 20, false, false ),
 		];
 
 		if ( empty( $new_singer['singer_name'] ) ) {
@@ -966,8 +969,9 @@ class Queue {
 
 		return rest_ensure_response(
 			[
-				'success' => true,
-				'id'      => $new_singer['id'],
+				'success'      => true,
+				'id'           => $new_singer['id'],
+				'status_token' => $new_singer['status_token'],
 			]
 		);
 	}
@@ -975,9 +979,10 @@ class Queue {
 	/**
 	 * GET /wpkq/v1/queue/status
 	 *
-	 * Returns status, queue position, and an estimated wait for specific singer IDs.
-	 * Only the requested singers are returned, and never other singers' names.
-	 * IDs that are not found are omitted from the response.
+	 * Returns status, queue position, and an estimated wait for the singers matching
+	 * the given private status tokens (returned only to the browser that signed up).
+	 * Public singer IDs are not accepted, so nobody can look up someone else's entry.
+	 * Tokens that are not found are omitted from the response.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response|\WP_Error
@@ -990,13 +995,13 @@ class Queue {
 			return $result;
 		}
 
-		$ids = array_map(
-			function ( $id ) {
-				return preg_replace( '/[^A-Za-z0-9]/', '', $id );
+		$tokens = array_map(
+			function ( $token ) {
+				return preg_replace( '/[^A-Za-z0-9]/', '', $token );
 			},
-			explode( ',', (string) $request->get_param( 'ids' ) )
+			explode( ',', (string) $request->get_param( 'tokens' ) )
 		);
-		$ids = array_slice( array_values( array_unique( array_filter( $ids ) ) ), 0, self::MAX_STATUS_IDS );
+		$tokens = array_slice( array_values( array_unique( array_filter( $tokens ) ) ), 0, self::MAX_STATUS_TOKENS );
 
 		$queue       = array_merge( $result['queue'], Venue::get_new_singers( $result['post_id'] ) );
 		$avg_seconds = $this->get_average_song_seconds( $queue );
@@ -1025,8 +1030,9 @@ class Queue {
 
 		$singers = [];
 		foreach ( $queue as $singer ) {
-			$id = $singer['id'] ?? '';
-			if ( '' === $id || ! in_array( $id, $ids, true ) || isset( $singers[ $id ] ) ) {
+			$id    = $singer['id'] ?? '';
+			$token = $singer['status_token'] ?? '';
+			if ( '' === $id || '' === $token || ! in_array( $token, $tokens, true ) || isset( $singers[ $token ] ) ) {
 				continue;
 			}
 
@@ -1052,8 +1058,8 @@ class Queue {
 				);
 			}
 
-			$singers[ $id ] = [
-				'id'           => $id,
+			$singers[ $token ] = [
+				'token'        => $token,
 				'song'         => $singer['song'] ?? '',
 				'artist'       => $singer['artist'] ?? '',
 				'status'       => $status,
@@ -1112,13 +1118,22 @@ class Queue {
 				'success'              => true,
 				'generated_time'       => time(),
 				'timezone'             => wp_timezone_string(),
-				'default_song_seconds' => absint( apply_filters( 'wpkq_default_song_seconds', self::DEFAULT_SONG_SECONDS ) ),
+				'default_song_seconds' => $this->get_default_song_seconds(),
 				'queue'                => $result['queue'],
 				'pending'              => Venue::get_new_singers( $post_id ),
 				'estimate_log'         => Venue::get_estimate_log( $post_id ),
 				'archives'             => Venue::get_queue_archives( $post_id ),
 			]
 		);
+	}
+
+	/**
+	 * Fallback song length used before any songs have finished tonight (minimum 60 seconds).
+	 *
+	 * @return int Seconds.
+	 */
+	private function get_default_song_seconds(): int {
+		return max( 60, absint( apply_filters( 'wpkq_default_song_seconds', self::DEFAULT_SONG_SECONDS ) ) );
 	}
 
 	/**
@@ -1148,7 +1163,7 @@ class Queue {
 		}
 
 		if ( empty( $finished ) ) {
-			return max( 60, absint( apply_filters( 'wpkq_default_song_seconds', self::DEFAULT_SONG_SECONDS ) ) );
+			return $this->get_default_song_seconds();
 		}
 
 		krsort( $finished, SORT_NATURAL );
