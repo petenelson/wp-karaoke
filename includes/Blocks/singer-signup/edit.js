@@ -6,7 +6,7 @@
 
 import { __ } from '@wordpress/i18n';
 import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
-import { PanelBody, SelectControl, Spinner } from '@wordpress/components';
+import { PanelBody, SelectControl, Spinner, ToggleControl } from '@wordpress/components';
 import { useSelect } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import ServerSideRender from '@wordpress/server-side-render';
@@ -20,7 +20,7 @@ import ServerSideRender from '@wordpress/server-side-render';
  * @return {Element} Editor UI.
  */
 export default function Edit( { attributes, setAttributes } ) {
-	const { venueId } = attributes;
+	const { venueId, showStatus } = attributes;
 
 	const blockProps = useBlockProps( {
 		className: 'wpkq-signup-editor-preview',
@@ -64,6 +64,16 @@ export default function Edit( { attributes, setAttributes } ) {
 							}
 						/>
 					) }
+					<ToggleControl
+						label={ __( 'Show singer status & wait estimate', 'wp-karaoke' ) }
+						help={ __(
+							'After signing up, singers see their place in line and an estimated wait.',
+							'wp-karaoke'
+						) }
+						checked={ showStatus }
+						onChange={ ( value ) => setAttributes( { showStatus: value } ) }
+						__nextHasNoMarginBottom
+					/>
 				</PanelBody>
 			</InspectorControls>
 

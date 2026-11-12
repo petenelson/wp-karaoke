@@ -13,8 +13,11 @@ import './style.css';
  */
 const SingerSignupBlock = {
 
-	COOKIE_NAME: 'wpkq_singer_name',
-	COOKIE_TTL:  6 * 60 * 60, // 6 hours in seconds.
+	COOKIE_NAME:           'wpkq_singer_name',
+	COOKIE_TTL:            6 * 60 * 60, // 6 hours in seconds.
+	SIGNUPS_COOKIE_PREFIX: 'wpkq_signups_',
+	STATUS_POLL_MS:        20 * 1000,
+	MAX_SIGNUP_IDS:        5,
 
 	/**
 	 * Write the singer name cookie.
@@ -34,6 +37,198 @@ const SingerSignupBlock = {
 	readSingerNameCookie: () => {
 		const match = document.cookie.match( new RegExp( '(?:^|; )' + SingerSignupBlock.COOKIE_NAME + '=([^;]*)' ) );
 		return match ? decodeURIComponent( match[ 1 ] ) : '';
+	},
+
+	/**
+	 * Read the list of this browser's private signup status tokens for a venue.
+	 *
+	 * @param {string} slug Venue slug.
+	 * @return {string[]} Status tokens.
+	 */
+	readSignupTokens: ( slug ) => {
+		const name  = SingerSignupBlock.SIGNUPS_COOKIE_PREFIX + slug;
+		const match = document.cookie.match( new RegExp( '(?:^|; )' + name + '=([^;]*)' ) );
+
+		if ( ! match ) {
+			return [];
+		}
+
+		try {
+			const tokens = JSON.parse( decodeURIComponent( match[ 1 ] ) );
+			return Array.isArray( tokens ) ? tokens.filter( ( token ) => /^[A-Za-z0-9]+$/.test( token ) ) : [];
+		} catch ( err ) {
+			return [];
+		}
+	},
+
+	/**
+	 * Save the list of status tokens for a venue. An empty list removes the cookie.
+	 *
+	 * @param {string}   slug   Venue slug.
+	 * @param {string[]} tokens Status tokens.
+	 */
+	saveSignupTokens: ( slug, tokens ) => {
+		const name    = SingerSignupBlock.SIGNUPS_COOKIE_PREFIX + slug;
+		const ttl     = tokens.length ? SingerSignupBlock.COOKIE_TTL * 1000 : -1000;
+		const expires = new Date( Date.now() + ttl ).toUTCString();
+		const value   = encodeURIComponent( JSON.stringify( tokens ) );
+
+		document.cookie = `${ name }=${ value }; expires=${ expires }; path=/; SameSite=Lax`;
+	},
+
+	/**
+	 * Add a status token for a venue, keeping only the most recent few.
+	 *
+	 * @param {string} slug  Venue slug.
+	 * @param {string} token Status token.
+	 */
+	addSignupToken: ( slug, token ) => {
+		const tokens = SingerSignupBlock.readSignupTokens( slug ).filter( ( existing ) => existing !== token );
+		tokens.push( token );
+		SingerSignupBlock.saveSignupTokens( slug, tokens.slice( -SingerSignupBlock.MAX_SIGNUP_IDS ) );
+	},
+
+	/**
+	 * Build the status message for a single signup.
+	 *
+	 * @param {Object} singer Singer status from the REST API.
+	 * @return {HTMLElement} Card element.
+	 */
+	buildStatusCard: ( singer ) => {
+		const card  = document.createElement( 'div' );
+		const title = document.createElement( 'p' );
+		const msg   = document.createElement( 'p' );
+
+		card.className  = `wpkq-signup__status-card wpkq-signup__status-card--${ singer.status }`;
+		title.className = 'wpkq-signup__status-song';
+		msg.className   = 'wpkq-signup__status-message';
+
+		title.textContent = singer.artist ? `${ singer.song } by ${ singer.artist }` : singer.song;
+
+		switch ( singer.status ) {
+			case 'in-the-queue': {
+				if ( 1 === singer.position ) {
+					msg.textContent = "You're up next! Head toward the stage.";
+					break;
+				}
+
+				const position = document.createElement( 'strong' );
+				position.className   = 'wpkq-signup__status-position';
+				position.textContent = `#${ singer.position }`;
+
+				msg.append( "You're ", position, ' in line' );
+
+				if ( null !== singer.wait_minutes ) {
+					const wait = document.createElement( 'strong' );
+					wait.textContent = `${ singer.wait_minutes } min`;
+					msg.append( ', about ', wait );
+				}
+
+				msg.append( '.' );
+				break;
+			}
+			case 'on-stage':
+				msg.textContent = "You're on stage, go get 'em!";
+				break;
+			case 'finished':
+				msg.textContent = 'Thanks for singing!';
+				break;
+			default:
+				msg.textContent = 'Waiting for the KJ to add you to the queue.';
+		}
+
+		card.append( title, msg );
+		return card;
+	},
+
+	/**
+	 * Fetch and render the status of this browser's signups.
+	 *
+	 * @param {Object} ctx Wrapper context.
+	 */
+	refreshStatus: async ( ctx ) => {
+		const { statusEl, statusUrl, venueSlug } = ctx;
+		const requested = SingerSignupBlock.readSignupTokens( venueSlug );
+
+		if ( ! requested.length ) {
+			statusEl.hidden = true;
+			statusEl.replaceChildren();
+			SingerSignupBlock.stopPolling( ctx );
+			return;
+		}
+
+		SingerSignupBlock.startPolling( ctx );
+
+		// Only the newest refresh may render, so a slow older response can't replace newer cards.
+		ctx.refreshSeq = ( ctx.refreshSeq || 0 ) + 1;
+		const seq      = ctx.refreshSeq;
+
+		let data;
+		try {
+			const params   = new URLSearchParams( { slug: venueSlug, tokens: requested.join( ',' ) } );
+			const response = await fetch( `${ statusUrl }?${ params }` );
+
+			if ( ! response.ok ) {
+				return;
+			}
+
+			data = await response.json();
+		} catch ( err ) {
+			// Network hiccup: keep showing the last known status.
+			return;
+		}
+
+		if ( seq !== ctx.refreshSeq ) {
+			return;
+		}
+
+		const singers = Array.isArray( data.singers ) ? data.singers : [];
+		const active  = singers
+			.filter( ( singer ) => 'finished' !== singer.status )
+			.map( ( singer ) => singer.token );
+
+		// Drop only tokens this request checked that are gone or finished (finished ones show one last
+		// time). Re-read the cookie so tokens added while the request was in flight are kept.
+		const drop    = requested.filter( ( token ) => ! active.includes( token ) );
+		const current = SingerSignupBlock.readSignupTokens( venueSlug ).filter( ( token ) => ! drop.includes( token ) );
+		SingerSignupBlock.saveSignupTokens( venueSlug, current );
+
+		// Show signups in the order they were made.
+		singers.sort( ( a, b ) => requested.indexOf( a.token ) - requested.indexOf( b.token ) );
+
+		statusEl.replaceChildren( ...singers.map( SingerSignupBlock.buildStatusCard ) );
+		statusEl.hidden = ! singers.length;
+
+		if ( ! current.length ) {
+			SingerSignupBlock.stopPolling( ctx );
+		}
+	},
+
+	/**
+	 * Start polling for status updates, if not already running.
+	 *
+	 * @param {Object} ctx Wrapper context.
+	 */
+	startPolling: ( ctx ) => {
+		if ( ctx.pollTimer ) {
+			return;
+		}
+
+		ctx.pollTimer = setInterval( () => {
+			if ( ! document.hidden ) {
+				SingerSignupBlock.refreshStatus( ctx );
+			}
+		}, SingerSignupBlock.STATUS_POLL_MS );
+	},
+
+	/**
+	 * Stop polling for status updates.
+	 *
+	 * @param {Object} ctx Wrapper context.
+	 */
+	stopPolling: ( ctx ) => {
+		clearInterval( ctx.pollTimer );
+		ctx.pollTimer = null;
 	},
 
 	/**
@@ -103,8 +298,11 @@ const SingerSignupBlock = {
 	 * @param {HTMLElement} ctx.submitBtn
 	 * @param {string}      ctx.signupUrl
 	 * @param {string}      ctx.venueSlug
+	 * @param {HTMLElement} ctx.statusEl
+	 * @param {string}      ctx.statusUrl
 	 */
-	handleSubmit: async ( e, { form, successEl, errorEl, submitBtn, signupUrl, venueSlug } ) => {
+	handleSubmit: async ( e, ctx ) => {
+		const { form, successEl, errorEl, submitBtn, signupUrl, venueSlug, statusEl, statusUrl } = ctx;
 		e.preventDefault();
 		SingerSignupBlock.clearError( errorEl );
 
@@ -148,6 +346,11 @@ const SingerSignupBlock = {
 
 			SingerSignupBlock.saveSingerNameCookie( name );
 			SingerSignupBlock.showSuccess( form, successEl );
+
+			if ( statusEl && statusUrl && data.status_token ) {
+				SingerSignupBlock.addSignupToken( venueSlug, data.status_token );
+				SingerSignupBlock.refreshStatus( ctx );
+			}
 		} catch ( err ) {
 			SingerSignupBlock.showError( errorEl, err.message || 'Something went wrong. Please try again.' );
 		} finally {
@@ -174,12 +377,25 @@ const SingerSignupBlock = {
 		const errorEl    = wrapper.querySelector( '.wpkq-signup__error' );
 		const submitBtn  = wrapper.querySelector( '.wpkq-signup__submit' );
 		const anotherBtn = wrapper.querySelector( '.wpkq-signup__another' );
+		const statusUrl  = wrapper.dataset.statusUrl || '';
+		const statusEl   = wrapper.querySelector( '.wpkq-signup__status' );
 
 		if ( ! form || ! successEl ) {
 			return;
 		}
 
-		const ctx = { form, successEl, errorEl, submitBtn, signupUrl, venueSlug };
+		const ctx = { form, successEl, errorEl, submitBtn, signupUrl, venueSlug, statusEl, statusUrl, pollTimer: null, refreshSeq: 0 };
+
+		// Singer status is enabled in the block settings: show any existing signups and keep them fresh.
+		if ( statusUrl && statusEl ) {
+			SingerSignupBlock.refreshStatus( ctx );
+
+			document.addEventListener( 'visibilitychange', () => {
+				if ( ! document.hidden && ctx.pollTimer ) {
+					SingerSignupBlock.refreshStatus( ctx );
+				}
+			} );
+		}
 
 		form.addEventListener( 'submit', ( e ) => SingerSignupBlock.handleSubmit( e, ctx ) );
 

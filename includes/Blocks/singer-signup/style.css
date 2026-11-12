@@ -138,3 +138,57 @@
 	background: #6366f1;
 	color: #fff;
 }
+
+/* ── Singer status cards ────────────────────────────────────────── */
+
+.wpkq-signup__status {
+	display: grid;
+	gap: 0.75rem;
+	margin-bottom: 1.25rem;
+}
+
+.wpkq-signup__status[hidden] {
+	display: none;
+}
+
+.wpkq-signup__status-card {
+	padding: 0.75rem 1rem;
+	background: #eef2ff;
+	border: 1px solid #c7d2fe;
+	border-left: 4px solid #6366f1;
+	border-radius: 6px;
+	color: #1e293b;
+}
+
+.wpkq-signup__status-card p {
+	margin: 0;
+}
+
+.wpkq-signup__status-song {
+	font-weight: 600;
+	margin-bottom: 0.25rem !important;
+}
+
+.wpkq-signup__status-position {
+	font-size: 1.5em;
+	color: #4338ca;
+}
+
+.wpkq-signup__status-card--kj-received {
+	background: #f8fafc;
+	border-color: #e2e8f0;
+	border-left-color: #94a3b8;
+	color: #475569;
+}
+
+.wpkq-signup__status-card--on-stage {
+	background: #ecfeff;
+	border-color: #a5f3fc;
+	border-left-color: #06b6d4;
+}
+
+.wpkq-signup__status-card--finished {
+	background: #f0fdf4;
+	border-color: #bbf7d0;
+	border-left-color: #22c55e;
+}
