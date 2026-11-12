@@ -39,12 +39,19 @@ $signup_url   = esc_url( rest_url( 'wpkq/v1/queue/signup' ) );
 $venue_slug   = esc_attr( $venue->post_name );
 $signups_open = (bool) get_post_meta( $venue->ID, Venue::SIGNUPS_META_KEY, true );
 $disabled     = $signups_open ? '' : 'disabled';
+$show_status  = (bool) ( $attributes['showStatus'] ?? true );
 ?>
 <div
 	class="wpkq-signup<?php echo $signups_open ? '' : ' wpkq-signup--closed'; ?>"
 	data-signup-url="<?php echo $signup_url; ?>"
 	data-venue-slug="<?php echo $venue_slug; ?>"
+	<?php if ( $show_status ) : ?>
+	data-status-url="<?php echo esc_url( rest_url( 'wpkq/v1/queue/status' ) ); ?>"
+	<?php endif; ?>
 >
+	<?php if ( $show_status ) : ?>
+	<div class="wpkq-signup__status" aria-live="polite" hidden></div>
+	<?php endif; ?>
 	<?php if ( ! $signups_open ) : ?>
 	<p class="wpkq-signup__closed-notice" role="status">
 		<?php esc_html_e( 'Signups are currently closed.', 'wp-karaoke' ); ?>
@@ -113,7 +120,13 @@ $disabled     = $signups_open ? '' : 'disabled';
 
 	<div class="wpkq-signup__success" hidden>
 		<p class="wpkq-signup__success-message">
-			<?php esc_html_e( "You're signed up! Watch for your name on screen.", 'wp-karaoke' ); ?>
+			<?php
+			if ( $show_status ) {
+				esc_html_e( "You're signed up!", 'wp-karaoke' );
+			} else {
+				esc_html_e( "You're signed up! Watch for your name on screen.", 'wp-karaoke' );
+			}
+			?>
 		</p>
 		<button class="wpkq-signup__another" type="button">
 			<?php esc_html_e( 'Sign Up Again', 'wp-karaoke' ); ?>

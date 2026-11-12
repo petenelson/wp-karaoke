@@ -14,6 +14,10 @@
 		"venueId": {
 			"type": "integer",
 			"default": 0
+		},
+		"showStatus": {
+			"type": "boolean",
+			"default": true
 		}
 	},
 	"editorScript": "file:../../../dist/js/block-singer-signup-editor.js",

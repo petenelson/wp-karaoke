@@ -36,6 +36,20 @@ class Queue {
 	const ROUTE = '/queue';
 
 	/**
+	 * Fallback song length (seconds) used for wait estimates before any songs have finished.
+	 *
+	 * @var int
+	 */
+	const DEFAULT_SONG_SECONDS = 300;
+
+	/**
+	 * Maximum number of singer IDs accepted by the status endpoint.
+	 *
+	 * @var int
+	 */
+	const MAX_STATUS_IDS = 5;
+
+	/**
 	 * Singleton instance.
 	 *
 	 * @var self|null
@@ -168,6 +182,40 @@ class Queue {
 						],
 					]
 				),
+			]
+		);
+
+		// GET /wpkq/v1/queue/status — public status lookup for specific singer IDs.
+		register_rest_route(
+			self::NAMESPACE,
+			self::ROUTE . '/status',
+			[
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => [ $this, 'get_singer_status' ],
+				'permission_callback' => '__return_true',
+				'args'                => array_merge(
+					$this->get_slug_arg(),
+					[
+						'ids' => [
+							'required'          => true,
+							'type'              => 'string',
+							'sanitize_callback' => 'sanitize_text_field',
+							'description'       => __( 'Comma-separated list of singer IDs.', 'wp-karaoke' ),
+						],
+					]
+				),
+			]
+		);
+
+		// GET /wpkq/v1/queue/report — admin: queue, estimate log, and archives for analysis.
+		register_rest_route(
+			self::NAMESPACE,
+			self::ROUTE . '/report',
+			[
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => [ $this, 'get_report' ],
+				'permission_callback' => [ $this, 'update_queue_permissions_check' ],
+				'args'                => $this->get_slug_arg(),
 			]
 		);
 
@@ -305,7 +353,15 @@ class Queue {
 		$post_id    = $result['post_id'];
 		$queue      = $result['queue'];
 		$new_singer = $this->sanitize_singer( $request->get_params() );
-		$queue[]    = $new_singer;
+
+		if ( 'in-the-queue' === $new_singer['status'] && empty( $new_singer['queued_time'] ) ) {
+			$new_singer['queued_time'] = time();
+		}
+		if ( 'on-stage' === $new_singer['status'] && empty( $new_singer['stage_time'] ) ) {
+			$new_singer['stage_time'] = time();
+		}
+
+		$queue[] = $new_singer;
 
 		$saved = Venue::save_queue( $post_id, $queue );
 
@@ -373,6 +429,12 @@ class Queue {
 			if ( null !== $request->get_param( 'status' ) ) {
 				$status_param = $request->get_param( 'status' );
 				if ( in_array( $status_param, $valid_statuses, true ) ) {
+					if ( 'on-stage' === $status_param && 'on-stage' !== ( $singer['status'] ?? '' ) ) {
+						$singer['stage_time'] = time();
+					}
+					if ( 'in-the-queue' === $status_param && empty( $singer['queued_time'] ) ) {
+						$singer['queued_time'] = time();
+					}
 					$singer['status'] = $status_param;
 					$new_status       = $status_param;
 				}
@@ -413,6 +475,12 @@ class Queue {
 				if ( null !== $request->get_param( 'status' ) ) {
 					$status_param = $request->get_param( 'status' );
 					if ( in_array( $status_param, $valid_statuses, true ) ) {
+						if ( 'on-stage' === $status_param ) {
+							$new_singer['stage_time'] = time();
+						}
+						if ( in_array( $status_param, [ 'in-the-queue', 'on-stage' ], true ) && empty( $new_singer['queued_time'] ) ) {
+							$new_singer['queued_time'] = time();
+						}
 						$new_singer['status'] = $status_param;
 						$new_status           = $status_param;
 					}
@@ -616,7 +684,11 @@ class Queue {
 		}
 
 		$post_id = $result['post_id'];
-		$saved   = Venue::save_queue( $post_id, [] );
+
+		// Keep a snapshot of the night for later analysis before clearing.
+		Venue::archive_queue( $post_id, array_merge( $result['queue'], Venue::get_new_singers( $post_id ) ) );
+
+		$saved = Venue::save_queue( $post_id, [] );
 
 		if ( false === $saved ) {
 			return new \WP_Error(
@@ -662,6 +734,7 @@ class Queue {
 				'youtube_playable' => null,
 				'signup_time'      => $now - 3600 + ( $index * 300 ),
 				'completed_time'   => 0,
+				'stage_time'       => 0 === $index ? $now : 0,
 				// The first fake singer starts on stage; the rest wait in the queue.
 				'status'           => 0 === $index ? 'on-stage' : 'in-the-queue',
 			];
@@ -723,6 +796,8 @@ class Queue {
 			'youtube_playable' => $youtube_playable,
 			'signup_time'      => isset( $singer['signup_time'] ) ? absint( $singer['signup_time'] ) : 0,
 			'completed_time'   => isset( $singer['completed_time'] ) ? absint( $singer['completed_time'] ) : 0,
+			'stage_time'       => isset( $singer['stage_time'] ) ? absint( $singer['stage_time'] ) : 0,
+			'queued_time'      => isset( $singer['queued_time'] ) ? absint( $singer['queued_time'] ) : 0,
 			'status'           => ( isset( $singer['status'] ) && in_array( $singer['status'], $valid_statuses, true ) )
 				? $singer['status']
 				: 'kj-received',
@@ -867,6 +942,7 @@ class Queue {
 			'youtube_url'    => '',
 			'signup_time'    => time(),
 			'completed_time' => 0,
+			'stage_time'     => 0,
 			'status'         => 'kj-received',
 		];
 
@@ -888,7 +964,197 @@ class Queue {
 			);
 		}
 
-		return rest_ensure_response( [ 'success' => true ] );
+		return rest_ensure_response(
+			[
+				'success' => true,
+				'id'      => $new_singer['id'],
+			]
+		);
+	}
+
+	/**
+	 * GET /wpkq/v1/queue/status
+	 *
+	 * Returns status, queue position, and an estimated wait for specific singer IDs.
+	 * Only the requested singers are returned, and never other singers' names.
+	 * IDs that are not found are omitted from the response.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function get_singer_status( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$slug   = $request->get_param( 'slug' );
+		$result = Venue::get_queue_by_slug( $slug );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$ids = array_map(
+			function ( $id ) {
+				return preg_replace( '/[^A-Za-z0-9]/', '', $id );
+			},
+			explode( ',', (string) $request->get_param( 'ids' ) )
+		);
+		$ids = array_slice( array_values( array_unique( array_filter( $ids ) ) ), 0, self::MAX_STATUS_IDS );
+
+		$queue       = array_merge( $result['queue'], Venue::get_new_singers( $result['post_id'] ) );
+		$avg_seconds = $this->get_average_song_seconds( $queue );
+		$now         = time();
+
+		// Time left for whoever is on stage right now.
+		$on_stage_remaining = 0;
+		foreach ( $queue as $singer ) {
+			if ( 'on-stage' === ( $singer['status'] ?? '' ) ) {
+				$stage_time         = absint( $singer['stage_time'] ?? 0 );
+				$on_stage_remaining = $stage_time > 0
+					? max( 0, $avg_seconds - ( $now - $stage_time ) )
+					: (int) floor( $avg_seconds / 2 );
+				break;
+			}
+		}
+
+		// 1-based positions of in-the-queue singers, in queue order.
+		$positions = [];
+		$position  = 0;
+		foreach ( $queue as $singer ) {
+			if ( 'in-the-queue' === ( $singer['status'] ?? '' ) && ! empty( $singer['id'] ) ) {
+				$positions[ $singer['id'] ] = ++$position;
+			}
+		}
+
+		$singers = [];
+		foreach ( $queue as $singer ) {
+			$id = $singer['id'] ?? '';
+			if ( '' === $id || ! in_array( $id, $ids, true ) || isset( $singers[ $id ] ) ) {
+				continue;
+			}
+
+			$status       = $singer['status'] ?? 'kj-received';
+			$position     = null;
+			$wait_minutes = null;
+
+			if ( 'in-the-queue' === $status && isset( $positions[ $id ] ) ) {
+				$position     = $positions[ $id ];
+				$wait_seconds = $on_stage_remaining + ( ( $position - 1 ) * $avg_seconds );
+				$wait_minutes = (int) ceil( $wait_seconds / 60 );
+
+				$this->maybe_log_estimate(
+					$result['post_id'],
+					[
+						'id'                 => $id,
+						'time'               => $now,
+						'position'           => $position,
+						'wait_minutes'       => $wait_minutes,
+						'avg_seconds'        => $avg_seconds,
+						'on_stage_remaining' => $on_stage_remaining,
+					]
+				);
+			}
+
+			$singers[ $id ] = [
+				'id'           => $id,
+				'song'         => $singer['song'] ?? '',
+				'artist'       => $singer['artist'] ?? '',
+				'status'       => $status,
+				'position'     => $position,
+				'wait_minutes' => $wait_minutes,
+			];
+		}
+
+		return rest_ensure_response(
+			[
+				'success' => true,
+				'singers' => array_values( $singers ),
+			]
+		);
+	}
+
+	/**
+	 * Log a wait estimate the first time a singer is shown a given queue position.
+	 *
+	 * A transient marks each singer/position pair as logged, so polling doesn't add duplicate rows.
+	 *
+	 * @param int   $post_id Venue post ID.
+	 * @param array $entry   Estimate data (id, time, position, wait_minutes, avg_seconds, on_stage_remaining).
+	 */
+	private function maybe_log_estimate( int $post_id, array $entry ): void {
+		$marker = 'wpkq_est_' . md5( $post_id . '|' . $entry['id'] . '|' . $entry['position'] );
+
+		if ( false !== get_transient( $marker ) ) {
+			return;
+		}
+
+		set_transient( $marker, 1, 12 * HOUR_IN_SECONDS );
+		Venue::add_estimate_log( $post_id, $entry );
+	}
+
+	/**
+	 * GET /wpkq/v1/queue/report
+	 *
+	 * Admin-only data dump for analyzing a night: the current queue (all fields),
+	 * pending signups, wait-estimate log, and queue snapshots saved on reset.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function get_report( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$result = Venue::get_queue_by_slug( $request->get_param( 'slug' ) );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$post_id = $result['post_id'];
+
+		return rest_ensure_response(
+			[
+				'success'              => true,
+				'generated_time'       => time(),
+				'timezone'             => wp_timezone_string(),
+				'default_song_seconds' => absint( apply_filters( 'wpkq_default_song_seconds', self::DEFAULT_SONG_SECONDS ) ),
+				'queue'                => $result['queue'],
+				'pending'              => Venue::get_new_singers( $post_id ),
+				'estimate_log'         => Venue::get_estimate_log( $post_id ),
+				'archives'             => Venue::get_queue_archives( $post_id ),
+			]
+		);
+	}
+
+	/**
+	 * Average song length tonight, based on finished singers' stage and completed times.
+	 *
+	 * Uses the most recent 10 plausible durations (60–900 seconds). Falls back to
+	 * DEFAULT_SONG_SECONDS (filterable via `wpkq_default_song_seconds`) when there is no data.
+	 *
+	 * @param array $queue Full singer queue.
+	 * @return int Average song length in seconds.
+	 */
+	private function get_average_song_seconds( array $queue ): int {
+		$finished = [];
+
+		foreach ( $queue as $singer ) {
+			if ( 'finished' !== ( $singer['status'] ?? '' ) ) {
+				continue;
+			}
+
+			$stage_time     = absint( $singer['stage_time'] ?? 0 );
+			$completed_time = absint( $singer['completed_time'] ?? 0 );
+			$duration       = $completed_time - $stage_time;
+
+			if ( $stage_time > 0 && $completed_time > 0 && $duration >= 60 && $duration <= 900 ) {
+				$finished[ $completed_time . '-' . count( $finished ) ] = $duration;
+			}
+		}
+
+		if ( empty( $finished ) ) {
+			return max( 60, absint( apply_filters( 'wpkq_default_song_seconds', self::DEFAULT_SONG_SECONDS ) ) );
+		}
+
+		krsort( $finished, SORT_NATURAL );
+		$recent = array_slice( $finished, 0, 10 );
+
+		return (int) round( array_sum( $recent ) / count( $recent ) );
 	}
 
 	/**
@@ -918,8 +1184,9 @@ class Queue {
 				$singer['completed_time'] = time();
 			}
 			if ( isset( $singer['id'] ) && $singer['id'] === $id ) {
-				$singer['status'] = 'on-stage';
-				$found            = true;
+				$singer['status']     = 'on-stage';
+				$singer['stage_time'] = time();
+				$found                = true;
 			}
 		}
 		unset( $singer );

@@ -49,6 +49,20 @@ class Venue {
 	const NEW_SINGER_META_PREFIX = '_wpkq_new_singer_';
 
 	/**
+	 * Post meta key for wait-estimate log entries (one meta row per entry).
+	 *
+	 * @var string
+	 */
+	const ESTIMATE_LOG_META_KEY = '_wpkq_estimate_log';
+
+	/**
+	 * Post meta key for queue snapshots taken before a reset (one meta row per snapshot).
+	 *
+	 * @var string
+	 */
+	const QUEUE_ARCHIVE_META_KEY = '_wpkq_queue_archive';
+
+	/**
 	 * Singleton instance.
 	 *
 	 * @var self|null
@@ -358,6 +372,81 @@ class Venue {
 		foreach ( $keys as $key ) {
 			delete_post_meta( $post_id, $key );
 		}
+	}
+
+	/**
+	 * Add a wait-estimate log entry. Each entry is its own meta row, so concurrent
+	 * writes never overwrite each other or the queue.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param array $entry   Log entry data.
+	 * @return bool True on success.
+	 */
+	public static function add_estimate_log( int $post_id, array $entry ): bool {
+		return (bool) add_post_meta( $post_id, self::ESTIMATE_LOG_META_KEY, wp_json_encode( $entry ) );
+	}
+
+	/**
+	 * Get all wait-estimate log entries for a venue, oldest first.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array Log entries.
+	 */
+	public static function get_estimate_log( int $post_id ): array {
+		return self::decode_meta_rows( get_post_meta( $post_id, self::ESTIMATE_LOG_META_KEY ) );
+	}
+
+	/**
+	 * Save a snapshot of the queue (including pending signups) before it is reset.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param array $queue   Full singer queue.
+	 * @return bool True on success.
+	 */
+	public static function archive_queue( int $post_id, array $queue ): bool {
+		if ( empty( $queue ) ) {
+			return false;
+		}
+
+		return (bool) add_post_meta(
+			$post_id,
+			self::QUEUE_ARCHIVE_META_KEY,
+			wp_json_encode(
+				[
+					'archived_time' => time(),
+					'queue'         => $queue,
+				]
+			)
+		);
+	}
+
+	/**
+	 * Get all queue snapshots for a venue, oldest first.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array Snapshots, each with 'archived_time' and 'queue'.
+	 */
+	public static function get_queue_archives( int $post_id ): array {
+		return self::decode_meta_rows( get_post_meta( $post_id, self::QUEUE_ARCHIVE_META_KEY ) );
+	}
+
+	/**
+	 * Decode a list of JSON meta values into arrays, skipping invalid rows.
+	 *
+	 * @param array $rows Raw meta values.
+	 * @return array Decoded rows.
+	 */
+	private static function decode_meta_rows( array $rows ): array {
+		$decoded = [];
+
+		foreach ( $rows as $row ) {
+			$data = is_string( $row ) ? json_decode( $row, true ) : null;
+			if ( is_array( $data ) ) {
+				$decoded[] = $data;
+			}
+		}
+
+		return $decoded;
 	}
 
 	/**
