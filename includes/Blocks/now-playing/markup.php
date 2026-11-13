@@ -138,6 +138,7 @@ $rest_url = esc_url_raw( rest_url( 'wpkq/v1/queue?slug=' . rawurlencode( $venue_
 			<?php endif; ?>
 		</div>
 		<div id="wpkq-yt-player"></div>
+		<div class="wpkq-monitor__reactions" aria-hidden="true"></div>
 	</div>
 
 	<div class="wpkq-monitor__ticker-wrap">

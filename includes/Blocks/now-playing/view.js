@@ -343,6 +343,57 @@ const NowPlayingBlock = {
 	 * @param {string}      venueSlug   Venue slug.
 	 * @param {HTMLElement} tickerInner Ticker inner element.
 	 */
+	/** Last audience reaction sequence number shown. -1 until the first poll. */
+	reactionsSeq: -1,
+
+	/** Maximum floating reactions on screen at once. */
+	MAX_REACTIONS_ON_SCREEN: 30,
+
+	/**
+	 * Float an audience reaction emoji up the side of the screen.
+	 *
+	 * @param {string} emoji Emoji character.
+	 */
+	showReaction: ( emoji ) => {
+		const layer = document.querySelector( '.wpkq-monitor__reactions' );
+
+		if ( ! layer || layer.childElementCount >= NowPlayingBlock.MAX_REACTIONS_ON_SCREEN ) {
+			return;
+		}
+
+		const el = document.createElement( 'span' );
+		el.className   = 'wpkq-monitor__reaction';
+		el.textContent = emoji;
+
+		// Random lane on the right side, size, drift, and speed so bursts don't stack up.
+		el.style.left = `${ 70 + Math.random() * 25 }%`;
+		el.style.setProperty( '--wpkq-reaction-size', `${ 2.5 + Math.random() * 2 }rem` );
+		el.style.setProperty( '--wpkq-reaction-drift', `${ Math.round( ( Math.random() - 0.5 ) * 120 ) }px` );
+		el.style.animationDuration = `${ 3.5 + Math.random() * 1.5 }s`;
+
+		el.addEventListener( 'animationend', () => el.remove() );
+		layer.appendChild( el );
+	},
+
+	/**
+	 * Handle the reactions part of an actions poll response.
+	 *
+	 * @param {Object} data Actions endpoint response.
+	 */
+	handleReactions: ( data ) => {
+		if ( 'number' !== typeof data.reactions_seq ) {
+			return;
+		}
+
+		( data.reactions || [] ).forEach( ( reaction, index ) => {
+			// Spread a batch from one poll across the second so they don't all launch together.
+			setTimeout( () => NowPlayingBlock.showReaction( reaction.emoji ), index * 120 );
+		} );
+
+		// The server's counter resets if the buffer expired; follow it down so new reactions still show.
+		NowPlayingBlock.reactionsSeq = data.reactions_seq;
+	},
+
 	startActionPolling: ( actionsUrl, venueSlug, tickerInner ) => {
 		const poll = () => {
 			NowPlayingBlock.fetchActions( actionsUrl, venueSlug, tickerInner )
@@ -360,11 +411,13 @@ const NowPlayingBlock = {
 	 */
 	fetchActions: async ( actionsUrl, venueSlug, tickerInner ) => {
 		try {
-			const res  = await fetch( `${ actionsUrl }?slug=${ encodeURIComponent( venueSlug ) }` );
-			const data = await res.json();
+			const params = new URLSearchParams( { slug: venueSlug, reactions_after: NowPlayingBlock.reactionsSeq } );
+			const res    = await fetch( `${ actionsUrl }?${ params }` );
+			const data   = await res.json();
 			( data.actions || [] ).forEach( ( action ) => {
 				NowPlayingBlock.handleAction( action, actionsUrl, venueSlug, tickerInner );
 			} );
+			NowPlayingBlock.handleReactions( data );
 		} catch ( e ) {}
 	},
 

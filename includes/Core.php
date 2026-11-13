@@ -45,6 +45,7 @@ class Core {
 		PostType\Venue::instance()->register();
 		REST\Queue::instance()->register();
 		REST\Actions::instance()->register();
+		REST\Reactions::instance()->register();
 		REST\YouTube::instance()->register();
 		Admin\QueueAdmin::instance()->register();
 		Blocks\NowPlaying::instance()->register();

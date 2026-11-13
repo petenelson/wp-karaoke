@@ -18,6 +18,8 @@ const SingerSignupBlock = {
 	SIGNUPS_COOKIE_PREFIX: 'wpkq_signups_',
 	STATUS_POLL_MS:        20 * 1000,
 	MAX_SIGNUP_IDS:        5,
+	VISITOR_COOKIE:        'wpkq_visitor',
+	REACTION_COOLDOWN_MS:  1500,
 
 	/**
 	 * Write the singer name cookie.
@@ -232,6 +234,78 @@ const SingerSignupBlock = {
 	},
 
 	/**
+	 * Get (or create) this browser's random visitor ID, used only for reaction rate limiting.
+	 *
+	 * @return {string} Visitor ID.
+	 */
+	getVisitorId: () => {
+		const name  = SingerSignupBlock.VISITOR_COOKIE;
+		const match = document.cookie.match( new RegExp( '(?:^|; )' + name + '=([a-z0-9]+)' ) );
+
+		if ( match ) {
+			return match[ 1 ];
+		}
+
+		const bytes = new Uint8Array( 12 );
+		window.crypto.getRandomValues( bytes );
+		const id      = Array.from( bytes, ( b ) => b.toString( 16 ).padStart( 2, '0' ) ).join( '' );
+		const expires = new Date( Date.now() + SingerSignupBlock.COOKIE_TTL * 1000 ).toUTCString();
+
+		document.cookie = `${ name }=${ id }; expires=${ expires }; path=/; SameSite=Lax`;
+		return id;
+	},
+
+	/**
+	 * Send an audience reaction to the monitor.
+	 *
+	 * @param {MouseEvent} e   Click event.
+	 * @param {Object}     rtx Reactions context.
+	 */
+	sendReaction: async ( e, rtx ) => {
+		const button = e.target.closest( '.wpkq-signup__reaction' );
+
+		if ( ! button || rtx.coolingDown ) {
+			return;
+		}
+
+		// Brief cooldown matching the server's per-visitor limit, with a little pop for feedback.
+		rtx.coolingDown = true;
+		rtx.buttons.forEach( ( btn ) => btn.setAttribute( 'aria-disabled', 'true' ) );
+		button.classList.remove( 'is-sent' );
+		void button.offsetWidth; // Restart the animation.
+		button.classList.add( 'is-sent' );
+
+		setTimeout( () => {
+			rtx.coolingDown = false;
+			rtx.buttons.forEach( ( btn ) => btn.removeAttribute( 'aria-disabled' ) );
+		}, SingerSignupBlock.REACTION_COOLDOWN_MS );
+
+		try {
+			const response = await fetch( rtx.reactionsUrl, {
+				method:  'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body:    JSON.stringify( {
+					slug:     rtx.venueSlug,
+					reaction: button.dataset.reaction,
+					visitor:  SingerSignupBlock.getVisitorId(),
+				} ),
+			} );
+
+			if ( response.ok ) {
+				rtx.noteEl.textContent = '';
+				return;
+			}
+
+			const data = await response.json().catch( () => ( {} ) );
+
+			// Only explain "nobody's singing"; rate-limit hits are silently ignored.
+			rtx.noteEl.textContent = 'no_one_on_stage' === data.code ? data.message : '';
+		} catch ( err ) {
+			// Network hiccup: reactions are best-effort.
+		}
+	},
+
+	/**
 	 * Show an inline error message.
 	 *
 	 * @param {HTMLElement} errorEl
@@ -385,6 +459,22 @@ const SingerSignupBlock = {
 		}
 
 		const ctx = { form, successEl, errorEl, submitBtn, signupUrl, venueSlug, statusEl, statusUrl, pollTimer: null, refreshSeq: 0 };
+
+		// Audience reactions are enabled in the block settings.
+		const reactionsUrl = wrapper.dataset.reactionsUrl || '';
+		const reactionsEl  = wrapper.querySelector( '.wpkq-signup__reactions' );
+
+		if ( reactionsUrl && reactionsEl ) {
+			const rtx = {
+				reactionsUrl,
+				venueSlug,
+				buttons:     reactionsEl.querySelectorAll( '.wpkq-signup__reaction' ),
+				noteEl:      reactionsEl.querySelector( '.wpkq-signup__reactions-note' ),
+				coolingDown: false,
+			};
+
+			reactionsEl.addEventListener( 'click', ( e ) => SingerSignupBlock.sendReaction( e, rtx ) );
+		}
 
 		// Singer status is enabled in the block settings: show any existing signups and keep them fresh.
 		if ( statusUrl && statusEl ) {
