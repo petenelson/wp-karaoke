@@ -336,13 +336,6 @@ const NowPlayingBlock = {
 			} );
 	},
 
-	/**
-	 * Start polling the actions endpoint once per second.
-	 *
-	 * @param {string}      actionsUrl  Base URL for the actions REST endpoint.
-	 * @param {string}      venueSlug   Venue slug.
-	 * @param {HTMLElement} tickerInner Ticker inner element.
-	 */
 	/** Last audience reaction sequence number shown. -1 until the first poll. */
 	reactionsSeq: -1,
 
@@ -385,15 +378,26 @@ const NowPlayingBlock = {
 			return;
 		}
 
-		( data.reactions || [] ).forEach( ( reaction, index ) => {
-			// Spread a batch from one poll across the second so they don't all launch together.
-			setTimeout( () => NowPlayingBlock.showReaction( reaction.emoji ), index * 120 );
+		const reactions = data.reactions || [];
+
+		// Spread each poll's batch evenly across the second until the next poll, so batches never pile up.
+		const spacing = reactions.length ? Math.min( 150, 1000 / reactions.length ) : 0;
+
+		reactions.forEach( ( reaction, index ) => {
+			setTimeout( () => NowPlayingBlock.showReaction( reaction.emoji ), index * spacing );
 		} );
 
 		// The server's counter resets if the buffer expired; follow it down so new reactions still show.
 		NowPlayingBlock.reactionsSeq = data.reactions_seq;
 	},
 
+	/**
+	 * Start polling the actions endpoint once per second.
+	 *
+	 * @param {string}      actionsUrl  Base URL for the actions REST endpoint.
+	 * @param {string}      venueSlug   Venue slug.
+	 * @param {HTMLElement} tickerInner Ticker inner element.
+	 */
 	startActionPolling: ( actionsUrl, venueSlug, tickerInner ) => {
 		const poll = () => {
 			NowPlayingBlock.fetchActions( actionsUrl, venueSlug, tickerInner )

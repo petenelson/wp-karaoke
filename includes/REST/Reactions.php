@@ -55,7 +55,18 @@ class Reactions {
 	 *
 	 * @var int
 	 */
-	const VENUE_MAX_PER_SECOND = 20;
+	const VENUE_MAX_PER_SECOND = 30;
+
+	/**
+	 * Maximum reactions accepted from one IP address in any one-second window.
+	 *
+	 * Lower than the venue cap so a single source (e.g. a script sending a new visitor ID
+	 * each time) can't use up the whole venue's allowance, but high enough for a bar's
+	 * shared Wi-Fi.
+	 *
+	 * @var int
+	 */
+	const IP_MAX_PER_SECOND = 10;
 
 	/**
 	 * Singleton instance.
@@ -144,7 +155,42 @@ class Reactions {
 	public function create_reaction( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$slug     = (string) $request->get_param( 'slug' );
 		$reaction = (string) $request->get_param( 'reaction' );
-		$result   = Venue::get_queue_by_slug( $slug );
+		$now      = microtime( true );
+		$ip       = $this->get_client_ip();
+
+		// Cheap transient checks run first, so rejected taps never load the queue.
+
+		// Per-visitor cooldown. Keyed on the browser's random ID (not IP alone: everyone on the bar's Wi-Fi shares one).
+		$visitor     = (string) $request->get_param( 'visitor' );
+		$visitor_key = 'wpkq_rx_' . md5( $slug . '|' . ( '' !== $visitor ? $visitor : $ip . '|' . $this->get_user_agent() ) );
+		$last        = (float) get_transient( $visitor_key );
+
+		if ( $last && ( $now - $last ) < self::VISITOR_COOLDOWN ) {
+			return $this->too_many( __( 'Slow down a little!', 'wp-karaoke' ) );
+		}
+
+		// Per-IP cap, so one source can't fill the venue cap by inventing visitor IDs.
+		$ip_key   = 'wpkq_rxip_' . md5( $slug . '|' . $ip );
+		$ip_times = array_values(
+			array_filter(
+				(array) get_transient( $ip_key ),
+				fn( $time ) => is_numeric( $time ) && ( $now - (float) $time ) < 1
+			)
+		);
+
+		if ( count( $ip_times ) >= self::IP_MAX_PER_SECOND ) {
+			return $this->too_many( __( 'Slow down a little!', 'wp-karaoke' ) );
+		}
+
+		// Per-venue cap, so the monitor isn't flooded.
+		$buffer      = $this->read_buffer( $slug );
+		$last_second = array_filter( $buffer['items'], fn( $item ) => ( $now - $item['t'] ) < 1 );
+
+		if ( count( $last_second ) >= self::VENUE_MAX_PER_SECOND ) {
+			return $this->too_many( __( 'The crowd is going wild! Try again in a moment.', 'wp-karaoke' ) );
+		}
+
+		$result = Venue::get_queue_by_slug( $slug );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
@@ -163,34 +209,8 @@ class Reactions {
 			);
 		}
 
-		$now = microtime( true );
-
-		// Per-visitor cooldown. Keyed on the browser's random ID (not IP: everyone on the bar's Wi-Fi shares one).
-		$visitor     = (string) $request->get_param( 'visitor' );
-		$visitor_key = 'wpkq_rx_' . md5( $slug . '|' . ( '' !== $visitor ? $visitor : $this->get_fallback_visitor() ) );
-		$last        = (float) get_transient( $visitor_key );
-
-		if ( $last && ( $now - $last ) < self::VISITOR_COOLDOWN ) {
-			return new \WP_Error(
-				'too_many_reactions',
-				__( 'Slow down a little!', 'wp-karaoke' ),
-				[ 'status' => 429 ]
-			);
-		}
-
-		$buffer = $this->read_buffer( $slug );
-
-		// Per-venue cap, so the monitor isn't flooded.
-		$last_second = array_filter( $buffer['items'], fn( $item ) => ( $now - $item['t'] ) < 1 );
-
-		if ( count( $last_second ) >= self::VENUE_MAX_PER_SECOND ) {
-			return new \WP_Error(
-				'too_many_reactions',
-				__( 'The crowd is going wild! Try again in a moment.', 'wp-karaoke' ),
-				[ 'status' => 429 ]
-			);
-		}
-
+		$ip_times[] = $now;
+		set_transient( $ip_key, $ip_times, 10 );
 		set_transient( $visitor_key, (string) $now, 10 );
 
 		++$buffer['seq'];
@@ -219,6 +239,12 @@ class Reactions {
 		$buffer    = self::instance()->read_buffer( $slug );
 		$emoji     = self::get_reactions();
 		$reactions = [];
+
+		// If the buffer expired and its counter restarted below what the monitor has seen,
+		// everything in it is new to the monitor.
+		if ( $after > $buffer['seq'] ) {
+			$after = 0;
+		}
 
 		if ( $after >= 0 ) {
 			foreach ( $buffer['items'] as $item ) {
@@ -289,15 +315,41 @@ class Reactions {
 	}
 
 	/**
-	 * Fallback visitor identity when the browser sent no ID: IP + user agent.
+	 * A 429 "too many reactions" error.
+	 *
+	 * @param string $message Message.
+	 * @return \WP_Error
+	 */
+	private function too_many( string $message ): \WP_Error {
+		return new \WP_Error( 'too_many_reactions', $message, [ 'status' => 429 ] );
+	}
+
+	/**
+	 * The client's IP address, for rate limiting.
+	 *
+	 * Uses REMOTE_ADDR. Sites behind a proxy or CDN can return the real client IP
+	 * with the `wpkq_reaction_client_ip` filter.
 	 *
 	 * @return string
 	 */
-	private function get_fallback_visitor(): string {
+	private function get_client_ip(): string {
+		$server = filter_var_array(
+			$_SERVER, // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			[ 'REMOTE_ADDR' => FILTER_VALIDATE_IP ]
+		);
+
+		return (string) apply_filters( 'wpkq_reaction_client_ip', (string) ( $server['REMOTE_ADDR'] ?? '' ) );
+	}
+
+	/**
+	 * The client's user agent, used with the IP when the browser sent no visitor ID.
+	 *
+	 * @return string
+	 */
+	private function get_user_agent(): string {
 		$server = filter_var_array(
 			$_SERVER, // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 			[
-				'REMOTE_ADDR'     => FILTER_VALIDATE_IP,
 				'HTTP_USER_AGENT' => [
 					'filter'  => FILTER_CALLBACK,
 					'options' => 'sanitize_text_field',
@@ -305,6 +357,6 @@ class Reactions {
 			]
 		);
 
-		return (string) ( $server['REMOTE_ADDR'] ?? '' ) . '|' . (string) ( $server['HTTP_USER_AGENT'] ?? '' );
+		return (string) ( $server['HTTP_USER_AGENT'] ?? '' );
 	}
 }

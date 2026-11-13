@@ -32,7 +32,7 @@ Refer to [10up Engineering Best Practices](https://10up.github.io/Engineering-Be
 | POST | `/wpkq/v1/queue/signup` | Public | Public singer self-signup; always sets `kj-received`; returns `{ success: true, id, status_token }` |
 | GET | `/wpkq/v1/queue/status` | Public | Status, queue position, and wait estimate for private status tokens (`tokens`, comma-separated, max 5). Public singer IDs are not accepted |
 | GET | `/wpkq/v1/queue/report` | `manage_options` | Analysis dump: full queue, pending signups, wait-estimate log, and queue snapshots saved on reset |
-| POST | `/wpkq/v1/reactions` | Public | Audience emoji reaction (`reaction`: clap, heart, fire, laugh, mic, rock; `visitor`: random browser ID). Only while someone is on stage (409 otherwise). Rate limited per visitor and per venue (429) |
+| POST | `/wpkq/v1/reactions` | Public | Audience emoji reaction (`reaction`: clap, heart, fire, laugh, mic, rock; `visitor`: random browser ID). Only while someone is on stage (409 otherwise). Rate limited per visitor, per IP, and per venue (429) |
 | GET | `/wpkq/v1/actions` | Cookie | Monitor poll: pending admin actions, plus new audience reactions after `reactions_after` |
 | POST | `/wpkq/v1/queue/advance` | Cookie | Monitor: mark current on-stage as finished, promote singer by ID |
 

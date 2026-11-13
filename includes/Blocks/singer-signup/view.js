@@ -20,6 +20,10 @@ const SingerSignupBlock = {
 	MAX_SIGNUP_IDS:        5,
 	VISITOR_COOKIE:        'wpkq_visitor',
 	REACTION_COOLDOWN_MS:  1500,
+	REACTION_NOTE_MS:      5000,
+
+	/** Visitor ID for this page view, so it stays stable even if cookies are blocked. */
+	visitorId: '',
 
 	/**
 	 * Write the singer name cookie.
@@ -239,11 +243,16 @@ const SingerSignupBlock = {
 	 * @return {string} Visitor ID.
 	 */
 	getVisitorId: () => {
+		if ( SingerSignupBlock.visitorId ) {
+			return SingerSignupBlock.visitorId;
+		}
+
 		const name  = SingerSignupBlock.VISITOR_COOKIE;
 		const match = document.cookie.match( new RegExp( '(?:^|; )' + name + '=([a-z0-9]+)' ) );
 
 		if ( match ) {
-			return match[ 1 ];
+			SingerSignupBlock.visitorId = match[ 1 ];
+			return SingerSignupBlock.visitorId;
 		}
 
 		const bytes = new Uint8Array( 12 );
@@ -251,8 +260,26 @@ const SingerSignupBlock = {
 		const id      = Array.from( bytes, ( b ) => b.toString( 16 ).padStart( 2, '0' ) ).join( '' );
 		const expires = new Date( Date.now() + SingerSignupBlock.COOKIE_TTL * 1000 ).toUTCString();
 
-		document.cookie = `${ name }=${ id }; expires=${ expires }; path=/; SameSite=Lax`;
+		document.cookie             = `${ name }=${ id }; expires=${ expires }; path=/; SameSite=Lax`;
+		SingerSignupBlock.visitorId = id;
 		return id;
+	},
+
+	/**
+	 * Show a short note under the reaction buttons, cleared after a few seconds.
+	 *
+	 * @param {Object} rtx     Reactions context.
+	 * @param {string} message Note text ('' clears it).
+	 */
+	setReactionNote: ( rtx, message ) => {
+		clearTimeout( rtx.noteTimer );
+		rtx.noteEl.textContent = message;
+
+		if ( message ) {
+			rtx.noteTimer = setTimeout( () => {
+				rtx.noteEl.textContent = '';
+			}, SingerSignupBlock.REACTION_NOTE_MS );
+		}
 	},
 
 	/**
@@ -292,14 +319,14 @@ const SingerSignupBlock = {
 			} );
 
 			if ( response.ok ) {
-				rtx.noteEl.textContent = '';
+				SingerSignupBlock.setReactionNote( rtx, '' );
 				return;
 			}
 
 			const data = await response.json().catch( () => ( {} ) );
 
 			// Only explain "nobody's singing"; rate-limit hits are silently ignored.
-			rtx.noteEl.textContent = 'no_one_on_stage' === data.code ? data.message : '';
+			SingerSignupBlock.setReactionNote( rtx, 'no_one_on_stage' === data.code ? data.message : '' );
 		} catch ( err ) {
 			// Network hiccup: reactions are best-effort.
 		}
@@ -471,6 +498,7 @@ const SingerSignupBlock = {
 				buttons:     reactionsEl.querySelectorAll( '.wpkq-signup__reaction' ),
 				noteEl:      reactionsEl.querySelector( '.wpkq-signup__reactions-note' ),
 				coolingDown: false,
+				noteTimer:   null,
 			};
 
 			reactionsEl.addEventListener( 'click', ( e ) => SingerSignupBlock.sendReaction( e, rtx ) );

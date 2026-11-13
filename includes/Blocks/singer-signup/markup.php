@@ -42,6 +42,7 @@ $signups_open = (bool) get_post_meta( $venue->ID, Venue::SIGNUPS_META_KEY, true 
 $disabled     = $signups_open ? '' : 'disabled';
 $show_status  = (bool) ( $attributes['showStatus'] ?? true );
 $show_react   = (bool) ( $attributes['showReactions'] ?? true );
+$react_title  = wp_unique_id( 'wpkq-signup-reactions-title-' );
 $react_labels = [
 	'clap'  => __( 'Applause', 'wp-karaoke' ),
 	'heart' => __( 'Love it', 'wp-karaoke' ),
@@ -147,8 +148,8 @@ $react_labels = [
 	</div>
 
 	<?php if ( $show_react ) : ?>
-	<div class="wpkq-signup__reactions" role="group" aria-labelledby="wpkq-signup-reactions-title">
-		<p class="wpkq-signup__reactions-title" id="wpkq-signup-reactions-title">
+	<div class="wpkq-signup__reactions" role="group" aria-labelledby="<?php echo esc_attr( $react_title ); ?>">
+		<p class="wpkq-signup__reactions-title" id="<?php echo esc_attr( $react_title ); ?>">
 			<?php esc_html_e( 'Cheer on the singer', 'wp-karaoke' ); ?>
 		</p>
 		<div class="wpkq-signup__reactions-buttons">
