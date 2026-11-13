@@ -288,7 +288,7 @@ const NowPlayingBlock = {
 	 * Fetch the queue from the REST API and pass singers to the callback.
 	 *
 	 * @param {string}   restUrl  REST endpoint URL.
-	 * @param {Function} callback Receives an array of singer objects.
+	 * @param {Function} callback Receives an array of singer objects, or null if the request failed.
 	 */
 	fetchQueue: ( restUrl, callback ) => {
 		if ( NowPlayingBlock.isFetchingQueue ) {
@@ -296,9 +296,14 @@ const NowPlayingBlock = {
 		}
 		NowPlayingBlock.isFetchingQueue = true;
 		return fetch( restUrl )
-			.then( ( res ) => res.json() )
-			.then( ( data ) => callback( data.queue || [] ) )
-			.catch( () => callback( [] ) )
+			.then( ( res ) => {
+				if ( ! res.ok ) {
+					throw new Error( `Queue request failed: ${ res.status }` );
+				}
+				return res.json();
+			} )
+			.then( ( data ) => callback( Array.isArray( data.queue ) ? data.queue : [] ) )
+			.catch( () => callback( null ) )
 			.finally( () => {
 				NowPlayingBlock.isFetchingQueue = false;
 			} );
@@ -313,7 +318,10 @@ const NowPlayingBlock = {
 	startQueuePolling: ( restUrl ) => {
 		const poll = () => {
 			NowPlayingBlock.fetchQueue( restUrl, ( singers ) => {
-				NowPlayingBlock.queueCache = singers;
+				// On a failed request, keep the last good queue rather than blanking the ticker.
+				if ( null !== singers ) {
+					NowPlayingBlock.queueCache = singers;
+				}
 			} ).finally( () => setTimeout( poll, NowPlayingBlock.QUEUE_POLL_MS ) );
 		};
 		setTimeout( poll, NowPlayingBlock.QUEUE_POLL_MS );
@@ -544,8 +552,10 @@ const NowPlayingBlock = {
 
 		// Initial load, then start background polling to keep the cache fresh.
 		NowPlayingBlock.fetchQueue( restUrl, ( singers ) => {
-			NowPlayingBlock.queueCache = singers;
-			NowPlayingBlock.renderTicker( tickerInner, singers );
+			// Render even if the first request failed, so the ticker scrolls (showing the empty message)
+			// and picks up the cache from the background poll on the next cycle.
+			NowPlayingBlock.queueCache = singers || [];
+			NowPlayingBlock.renderTicker( tickerInner, NowPlayingBlock.queueCache );
 		} );
 		NowPlayingBlock.startQueuePolling( restUrl );
 
