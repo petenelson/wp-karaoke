@@ -208,10 +208,20 @@ class Venue {
 			admin_url( 'admin.php' )
 		);
 
+		$history_url = add_query_arg(
+			[
+				'page' => 'wpkq-night-history',
+				'slug' => $post->post_name,
+			],
+			admin_url( 'admin.php' )
+		);
+
 		printf(
-			'<a href="%s" class="button button-small">%s</a>',
+			'<a href="%s" class="button button-small">%s</a> <a href="%s" class="button button-small">%s</a>',
 			esc_url( $url ),
-			esc_html__( 'Manage Queue', 'wp-karaoke' )
+			esc_html__( 'Manage Queue', 'wp-karaoke' ),
+			esc_url( $history_url ),
+			esc_html__( 'History', 'wp-karaoke' )
 		);
 	}
 
@@ -401,11 +411,12 @@ class Venue {
 	/**
 	 * Save a snapshot of the queue (including pending signups) before it is reset.
 	 *
-	 * @param int   $post_id Post ID.
-	 * @param array $queue   Full singer queue.
+	 * @param int   $post_id       Post ID.
+	 * @param array $queue         Full singer queue.
+	 * @param int   $archived_time Snapshot time (defaults to now).
 	 * @return bool True on success.
 	 */
-	public static function archive_queue( int $post_id, array $queue ): bool {
+	public static function archive_queue( int $post_id, array $queue, int $archived_time = 0 ): bool {
 		if ( empty( $queue ) ) {
 			return false;
 		}
@@ -417,7 +428,7 @@ class Venue {
 			wp_slash(
 				wp_json_encode(
 					[
-						'archived_time' => time(),
+						'archived_time' => $archived_time ?: time(),
 						'queue'         => $queue,
 					]
 				)
