@@ -20,7 +20,7 @@ import ServerSideRender from '@wordpress/server-side-render';
  * @return {Element} Editor UI.
  */
 export default function Edit( { attributes, setAttributes } ) {
-	const { venueId, showStatus } = attributes;
+	const { venueId, showStatus, showReactions } = attributes;
 
 	const blockProps = useBlockProps( {
 		className: 'wpkq-signup-editor-preview',
@@ -72,6 +72,16 @@ export default function Edit( { attributes, setAttributes } ) {
 						) }
 						checked={ showStatus }
 						onChange={ ( value ) => setAttributes( { showStatus: value } ) }
+						__nextHasNoMarginBottom
+					/>
+					<ToggleControl
+						label={ __( 'Show audience reactions', 'wp-karaoke' ) }
+						help={ __(
+							'Emoji buttons that float reactions up the Now Playing monitor while someone is singing.',
+							'wp-karaoke'
+						) }
+						checked={ showReactions }
+						onChange={ ( value ) => setAttributes( { showReactions: value } ) }
 						__nextHasNoMarginBottom
 					/>
 				</PanelBody>

@@ -159,6 +159,28 @@ Submissions POST to `POST /wpkq/v1/queue/signup` (no auth required):
 
 ---
 
+## Audience Reactions
+
+Audience members tap emoji buttons in the Singer Signup block, and the reactions float up the right side of the Now Playing monitor.
+
+### Signup block
+- Controlled by the **Show audience reactions** toggle (`showReactions` attribute, default on). When off, the buttons and `data-reactions-url` are left out.
+- Six buttons: 👏 ❤️ 🔥 😂 🎤 🤘 (keys `clap`, `heart`, `fire`, `laugh`, `mic`, `rock`), each with an accessible label. They show in both the form and success states.
+- A random `wpkq_visitor` cookie (6-hour TTL) identifies the browser for rate limiting. The ID is also kept in memory for the page view, so it stays the same if cookies are blocked. After each tap the buttons cool down for 1.5s (`aria-disabled`).
+- When nobody is on stage, the server returns 409 and the block shows "Reactions work while someone is singing." for 5 seconds. Rate-limit (429) responses are ignored silently.
+
+### Server (`WPKQ\REST\Reactions`)
+- `POST /wpkq/v1/reactions` (public): `slug`, `reaction` (enum), `visitor`. Only accepted while a singer is `on-stage`.
+- Limits, checked before the queue is loaded: one reaction per 1.5s per visitor (keyed on the visitor ID, or IP + user agent if missing — not IP alone, since everyone on a bar's Wi-Fi shares one); 10 per second per IP address, so one source can't use up the venue's allowance by inventing visitor IDs; and 30 per second per venue. Sites behind a proxy or CDN can supply the real client IP with the `wpkq_reaction_client_ip` filter.
+- If the buffer expires and its counter restarts below the monitor's last `seq`, the next poll returns everything in the buffer, so no reactions are skipped.
+- Accepted reactions go into a per-venue transient buffer (`wpkq_reactions_{slug}`) with an increasing `seq`. Items expire after 15 seconds. Writes are read-modify-write, so a few reactions can be lost when many arrive in the same instant; reactions are cosmetic, so this is accepted.
+
+### Monitor
+- Reactions ride on the existing 1-second `GET /wpkq/v1/actions` poll: the monitor sends `reactions_after` (its last `seq`, `-1` on first poll so old reactions aren't replayed) and gets back `reactions` and `reactions_seq`.
+- Each emoji floats up in a random lane on the right with random size, drift, and speed. Each poll's batch is spread evenly over the following second (at most 150ms apart), and at most 30 are on screen at once. With `prefers-reduced-motion`, emoji fade in and out without moving.
+
+---
+
 ## REST API Reference
 
 All routes use the namespace `wpkq/v1`. Routes that operate on a venue require a `slug` parameter identifying the published `karaoke-venue` post.

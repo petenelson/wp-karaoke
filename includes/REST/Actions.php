@@ -83,7 +83,17 @@ class Actions {
 					'methods'             => \WP_REST_Server::READABLE,
 					'callback'            => [ $this, 'get_actions' ],
 					'permission_callback' => [ $this, 'monitor_permissions_check' ],
-					'args'                => $this->get_slug_arg(),
+					'args'                => array_merge(
+						$this->get_slug_arg(),
+						[
+							'reactions_after' => [
+								'required'    => false,
+								'type'        => 'integer',
+								'default'     => -1,
+								'description' => __( 'Last audience reaction sequence number the monitor has shown. -1 on first poll.', 'wp-karaoke' ),
+							],
+						]
+					),
 				],
 				[
 					'methods'             => \WP_REST_Server::CREATABLE,
@@ -134,18 +144,22 @@ class Actions {
 	/**
 	 * GET /wpkq/v1/actions
 	 *
-	 * Returns pending actions for the venue.
+	 * Returns pending actions for the venue, plus any new audience reactions
+	 * (piggybacked on this poll so the monitor doesn't need a second one).
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response
 	 */
 	public function get_actions( \WP_REST_Request $request ) {
-		$slug    = $request->get_param( 'slug' );
-		$actions = $this->read_actions( $slug );
+		$slug      = $request->get_param( 'slug' );
+		$actions   = $this->read_actions( $slug );
+		$reactions = Reactions::get_since( (string) $slug, (int) $request->get_param( 'reactions_after' ) );
 
 		return rest_ensure_response( [
-			'success' => true,
-			'actions' => array_values( $actions ),
+			'success'       => true,
+			'actions'       => array_values( $actions ),
+			'reactions'     => $reactions['reactions'],
+			'reactions_seq' => $reactions['seq'],
 		] );
 	}
 

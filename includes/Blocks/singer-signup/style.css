@@ -192,3 +192,80 @@
 	border-color: #bbf7d0;
 	border-left-color: #22c55e;
 }
+
+/* ── Audience reactions ─────────────────────────────────────────── */
+
+.wpkq-signup__reactions {
+	margin-top: 1.5rem;
+	padding-top: 1.25rem;
+	border-top: 1px solid #e2e8f0;
+	text-align: center;
+}
+
+.wpkq-signup__reactions-title {
+	margin: 0 0 0.75rem;
+	font-weight: 600;
+	color: #1e293b;
+}
+
+.wpkq-signup__reactions-buttons {
+	display: grid;
+	grid-template-columns: repeat(6, minmax(0, 1fr));
+	gap: 0.5rem;
+}
+
+.wpkq-signup__reaction {
+	min-height: 48px;
+	padding: 0.5rem 0;
+	font-size: 1.75rem;
+	line-height: 1;
+	background: #f8fafc;
+	border: 1px solid #e2e8f0;
+	border-radius: 999px;
+	cursor: pointer;
+	transition: background 0.15s, transform 0.1s;
+	touch-action: manipulation;
+}
+
+.wpkq-signup__reaction:hover {
+	background: #eef2ff;
+}
+
+.wpkq-signup__reaction:focus-visible {
+	outline: 3px solid #6366f1;
+	outline-offset: 2px;
+}
+
+.wpkq-signup__reaction[aria-disabled="true"] {
+	opacity: 0.6;
+	cursor: default;
+}
+
+.wpkq-signup__reaction.is-sent {
+	animation: wpkq-reaction-pop 0.35s ease-out;
+}
+
+@keyframes wpkq-reaction-pop {
+	50% {
+		transform: scale(1.25);
+	}
+}
+
+.wpkq-signup__reactions-note {
+	min-height: 1.25em;
+	margin: 0.5rem 0 0;
+	color: #64748b;
+	font-size: 0.9em;
+}
+
+@media (max-width: 360px) {
+	.wpkq-signup__reactions-buttons {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.wpkq-signup__reaction.is-sent {
+		animation: none;
+	}
+}

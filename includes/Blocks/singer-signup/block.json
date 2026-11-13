@@ -18,6 +18,10 @@
 		"showStatus": {
 			"type": "boolean",
 			"default": true
+		},
+		"showReactions": {
+			"type": "boolean",
+			"default": true
 		}
 	},
 	"editorScript": "file:../../../dist/js/block-singer-signup-editor.js",

@@ -10,6 +10,7 @@
  */
 
 use WPKQ\PostType\Venue;
+use WPKQ\REST\Reactions;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -40,11 +41,24 @@ $venue_slug   = esc_attr( $venue->post_name );
 $signups_open = (bool) get_post_meta( $venue->ID, Venue::SIGNUPS_META_KEY, true );
 $disabled     = $signups_open ? '' : 'disabled';
 $show_status  = (bool) ( $attributes['showStatus'] ?? true );
+$show_react   = (bool) ( $attributes['showReactions'] ?? true );
+$react_title  = wp_unique_id( 'wpkq-signup-reactions-title-' );
+$react_labels = [
+	'clap'  => __( 'Applause', 'wp-karaoke' ),
+	'heart' => __( 'Love it', 'wp-karaoke' ),
+	'fire'  => __( 'On fire', 'wp-karaoke' ),
+	'laugh' => __( 'Funny', 'wp-karaoke' ),
+	'mic'   => __( 'Great vocals', 'wp-karaoke' ),
+	'rock'  => __( 'Rock on', 'wp-karaoke' ),
+];
 ?>
 <div
 	class="wpkq-signup<?php echo $signups_open ? '' : ' wpkq-signup--closed'; ?>"
 	data-signup-url="<?php echo $signup_url; ?>"
 	data-venue-slug="<?php echo $venue_slug; ?>"
+	<?php if ( $show_react ) : ?>
+	data-reactions-url="<?php echo esc_url( rest_url( 'wpkq/v1/reactions' ) ); ?>"
+	<?php endif; ?>
 	<?php if ( $show_status ) : ?>
 	data-status-url="<?php echo esc_url( rest_url( 'wpkq/v1/queue/status' ) ); ?>"
 	<?php endif; ?>
@@ -132,4 +146,23 @@ $show_status  = (bool) ( $attributes['showStatus'] ?? true );
 			<?php esc_html_e( 'Sign Up Again', 'wp-karaoke' ); ?>
 		</button>
 	</div>
+
+	<?php if ( $show_react ) : ?>
+	<div class="wpkq-signup__reactions" role="group" aria-labelledby="<?php echo esc_attr( $react_title ); ?>">
+		<p class="wpkq-signup__reactions-title" id="<?php echo esc_attr( $react_title ); ?>">
+			<?php esc_html_e( 'Cheer on the singer', 'wp-karaoke' ); ?>
+		</p>
+		<div class="wpkq-signup__reactions-buttons">
+			<?php foreach ( Reactions::get_reactions() as $react_key => $react_emoji ) : ?>
+			<button
+				type="button"
+				class="wpkq-signup__reaction"
+				data-reaction="<?php echo esc_attr( $react_key ); ?>"
+				aria-label="<?php echo esc_attr( $react_labels[ $react_key ] ?? $react_key ); ?>"
+			><?php echo esc_html( $react_emoji ); ?></button>
+			<?php endforeach; ?>
+		</div>
+		<p class="wpkq-signup__reactions-note" role="status"></p>
+	</div>
+	<?php endif; ?>
 </div>
