@@ -12,6 +12,7 @@ This is a WordPress plugin project (wp-karaoke) to manage a karaoke queue and ho
 
 - **Post type:** `karaoke-venue` — stores the singer queue in a single post meta field as a JSON array.
 - **Singer fields:** `id` (10-char alphanumeric), `singer_name`, `song`, `artist`, `youtube_url`, `signup_time`, `queued_time` (set when moved into the queue), `stage_time` (set when the singer goes on stage), `completed_time`, `status`.
+- **Night history:** hidden `karaoke-night` post type (child of the venue). On Reset Queue, a permanent summary of the night's finished performances is saved to the night post's meta (`_wpkq_night_summary`). Fake singers (`fake: true`) are excluded.
 - **Singer statuses:** `kj-received` → `in-the-queue` → `on-stage` → `finished`.
 - **REST namespace:** `wpkq/v1`. All queue routes require a `slug` param to identify the venue.
 - **Auth:** Admin mutations use `manage_options`. The monitor (Now Playing block) uses a venue-specific cookie (`wpkq_auth_{slug}` = `md5(password)`).
@@ -42,6 +43,8 @@ Refer to [10up Engineering Best Practices](https://10up.github.io/Engineering-Be
 - `includes/post-type/class-venue-post-type.php` — `Venue_Post_Type`, `get_queue_by_slug()`, `save_queue()`
 - `includes/rest/class-queue-rest-controller.php` — all REST endpoints
 - `includes/admin/class-queue-admin.php` — admin queue page HTML
+- `includes/PostType/Night.php` — night summaries, backfill from snapshots, and history stats
+- `includes/Admin/HistoryAdmin.php` — admin Night History page (`?page=wpkq-night-history&slug=`)
 - `assets/js/admin/queue-admin.js` — admin JS (SortableJS, modals, REST calls)
 - `includes/REST/Reactions.php` — audience reactions endpoint and per-venue reaction buffer
 - `includes/blocks/now-playing/` — Now Playing block (view.js, markup.php, style.css)

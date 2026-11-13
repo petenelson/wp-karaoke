@@ -54,6 +54,23 @@ All admin endpoints require `manage_options` and a WordPress REST nonce (`X-WP-N
 
 ---
 
+## Night History
+
+An admin-only page per venue, opened with the **History** button next to **Manage Queue** on the venue list (`admin.php?page=wpkq-night-history&slug=`). Class: `WPKQ\Admin\HistoryAdmin`.
+
+### Storage
+- Each night is a hidden `karaoke-night` post (`WPKQ\PostType\Night`) whose `post_parent` is the venue and whose `post_date` is the night's start. It is not public, has no admin UI or REST, and is never loaded with the venue's meta.
+- The summary JSON lives in the night post's `_wpkq_night_summary` meta: `version`, `archived_time`, `started`, `ended`, `signups`, `unfinished` (signups still waiting at reset), and `performances` (finished singers in stage order: `singer_name`, `song`, `artist`, `signup_time`, `queued_time`, `stage_time`, `completed_time`, `used_status_card`). Summaries are kept permanently, unlike the 30-day queue snapshots.
+- A night is created on **Reset Queue** from the same snapshot that is archived. Opening the History page also backfills nights from any saved snapshots without one. `_wpkq_snapshot_key` (hash of snapshot time + contents) prevents duplicates.
+- Nights with no finished performances are skipped. Fake singers loaded by the Now Playing block are flagged `fake: true` and excluded.
+
+### Page
+- Totals: nights, performances, different singers, average song length.
+- Top 10 songs, top 10 artists, and regulars (singers on more than one night). Grouping ignores case and extra spaces, and shows the most common spelling.
+- Nights table: date and time range, expandable song list, songs, singers, average song length, average wait in queue (approval → on stage), average time to approve (signup → approval), and status card users. Each night has a **Delete** button (with confirmation) for removing test nights.
+
+---
+
 ## Second Component: The "Now Playing" Block
 
 A Gutenberg block displayed on a laptop connected to a TV, showing the current singer and upcoming queue as a ticker.
