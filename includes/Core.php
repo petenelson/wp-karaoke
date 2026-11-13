@@ -43,10 +43,12 @@ class Core {
 	 */
 	public function init(): void {
 		PostType\Venue::instance()->register();
+		PostType\Night::instance()->register();
 		REST\Queue::instance()->register();
 		REST\Actions::instance()->register();
 		REST\YouTube::instance()->register();
 		Admin\QueueAdmin::instance()->register();
+		Admin\HistoryAdmin::instance()->register();
 		Blocks\NowPlaying::instance()->register();
 		Blocks\SingerSignup::instance()->register();
 	}

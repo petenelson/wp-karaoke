@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 use WPKQ\PostType\Venue;
+use WPKQ\PostType\Night;
 use WPKQ\Blocks\NowPlaying;
 
 /**
@@ -685,8 +686,11 @@ class Queue {
 
 		$post_id = $result['post_id'];
 
-		// Keep a snapshot of the night for later analysis before clearing.
-		Venue::archive_queue( $post_id, array_merge( $result['queue'], Venue::get_new_singers( $post_id ) ) );
+		// Keep a snapshot of the night for later analysis, plus a permanent summary for Night History.
+		$archived_time = time();
+		$full_queue    = array_merge( $result['queue'], Venue::get_new_singers( $post_id ) );
+		Venue::archive_queue( $post_id, $full_queue, $archived_time );
+		Night::create_from_queue( $post_id, $full_queue, $archived_time );
 		Venue::prune_history( $post_id );
 
 		$saved = Venue::save_queue( $post_id, [] );
@@ -736,6 +740,8 @@ class Queue {
 				'signup_time'      => $now - 3600 + ( $index * 300 ),
 				'completed_time'   => 0,
 				'stage_time'       => 0 === $index ? $now : 0,
+				// Fake singers are left out of Night History.
+				'fake'             => true,
 				// The first fake singer starts on stage; the rest wait in the queue.
 				'status'           => 0 === $index ? 'on-stage' : 'in-the-queue',
 			];
