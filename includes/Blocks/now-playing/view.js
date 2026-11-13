@@ -124,8 +124,17 @@ const NowPlayingBlock = {
 	/** Milliseconds between background queue polls. */
 	QUEUE_POLL_MS: 5000,
 
+	/** Milliseconds before a queue request is abandoned, so a hung request can't stop polling. */
+	QUEUE_TIMEOUT_MS: 10000,
+
 	/** @type {Array} Most recently fetched queue; read by the ticker on each scroll-complete cycle. */
 	queueCache: [],
+
+	/**
+	 * @type {number} Bumped on every cache write. A poll that started before the latest write
+	 *                (e.g. an advance click) is discarded so it can't put an older queue back.
+	 */
+	queueVersion: 0,
 
 	/** @type {boolean} True while a queue fetch is in-flight; prevents concurrent requests. */
 	isFetchingQueue: false,
@@ -285,46 +294,101 @@ const NowPlayingBlock = {
 	},
 
 	/**
-	 * Fetch the queue from the REST API and pass singers to the callback.
+	 * Fetch the queue from the REST API.
 	 *
-	 * @param {string}   restUrl  REST endpoint URL.
-	 * @param {Function} callback Receives an array of singer objects, or null if the request failed.
+	 * Requests are abandoned after QUEUE_TIMEOUT_MS. Only one request runs at a time.
+	 *
+	 * @param {string} restUrl REST endpoint URL.
+	 * @return {Promise<Array|null>} Singers, or null if the request failed, timed out, or one was already running.
 	 */
-	fetchQueue: ( restUrl, callback ) => {
+	fetchQueue: ( restUrl ) => {
 		if ( NowPlayingBlock.isFetchingQueue ) {
-			return Promise.resolve();
+			return Promise.resolve( null );
 		}
+
 		NowPlayingBlock.isFetchingQueue = true;
-		return fetch( restUrl )
+
+		const controller = new AbortController();
+		const timer      = setTimeout( () => controller.abort(), NowPlayingBlock.QUEUE_TIMEOUT_MS );
+
+		return fetch( restUrl, { signal: controller.signal } )
 			.then( ( res ) => {
 				if ( ! res.ok ) {
 					throw new Error( `Queue request failed: ${ res.status }` );
 				}
 				return res.json();
 			} )
-			.then( ( data ) => callback( Array.isArray( data.queue ) ? data.queue : [] ) )
-			.catch( () => callback( null ) )
+			// Handle success and failure in one step, so only request errors become null.
+			.then(
+				( data ) => ( Array.isArray( data.queue ) ? data.queue : [] ),
+				() => null
+			)
 			.finally( () => {
+				clearTimeout( timer );
 				NowPlayingBlock.isFetchingQueue = false;
 			} );
 	},
 
 	/**
-	 * Start polling the queue REST endpoint in the background, caching the result
-	 * so the ticker can read it on each scroll-complete cycle without its own fetch.
+	 * Store a new queue in the cache, and optionally redraw the ticker with it.
 	 *
-	 * @param {string} restUrl REST endpoint URL.
+	 * Every cache write goes through here so the array check and version bump stay in one place.
+	 *
+	 * @param {Array}            queue       Singers.
+	 * @param {HTMLElement|null} tickerInner Ticker inner element to redraw, or null to only update the cache.
 	 */
-	startQueuePolling: ( restUrl ) => {
+	setQueue: ( queue, tickerInner = null ) => {
+		if ( ! Array.isArray( queue ) ) {
+			return;
+		}
+
+		NowPlayingBlock.queueVersion++;
+		NowPlayingBlock.queueCache = queue;
+
+		if ( tickerInner ) {
+			NowPlayingBlock.renderTicker( tickerInner, queue );
+		}
+	},
+
+	/**
+	 * Load the queue and keep it fresh with a background poll. The ticker reads the cache
+	 * on each scroll-complete cycle instead of fetching.
+	 *
+	 * The first result draws the ticker. If that first request fails, the empty message is
+	 * drawn so the ticker still scrolls and picks up the next poll's result.
+	 *
+	 * @param {string}      restUrl     REST endpoint URL.
+	 * @param {HTMLElement} tickerInner Ticker inner element.
+	 */
+	startQueuePolling: ( restUrl, tickerInner ) => {
+		let hasRendered = false;
+
 		const poll = () => {
-			NowPlayingBlock.fetchQueue( restUrl, ( singers ) => {
-				// On a failed request, keep the last good queue rather than blanking the ticker.
-				if ( null !== singers ) {
-					NowPlayingBlock.queueCache = singers;
-				}
-			} ).finally( () => setTimeout( poll, NowPlayingBlock.QUEUE_POLL_MS ) );
+			const startVersion = NowPlayingBlock.queueVersion;
+
+			NowPlayingBlock.fetchQueue( restUrl )
+				.then( ( singers ) => {
+					// A local update (advance, seed) landed while this request was running; its queue is newer.
+					const isStale = startVersion !== NowPlayingBlock.queueVersion;
+
+					if ( ! hasRendered ) {
+						hasRendered = true;
+
+						if ( ! isStale ) {
+							NowPlayingBlock.setQueue( singers || [], tickerInner );
+						}
+						return;
+					}
+
+					// On a failed request, keep the last good queue rather than blanking the ticker.
+					if ( null !== singers && ! isStale ) {
+						NowPlayingBlock.setQueue( singers );
+					}
+				} )
+				.finally( () => setTimeout( poll, NowPlayingBlock.QUEUE_POLL_MS ) );
 		};
-		setTimeout( poll, NowPlayingBlock.QUEUE_POLL_MS );
+
+		poll();
 	},
 
 	/**
@@ -475,10 +539,7 @@ const NowPlayingBlock = {
 				} )
 					.then( ( res ) => res.json() )
 					.then( ( data ) => {
-						if ( data.queue ) {
-							NowPlayingBlock.queueCache = data.queue;
-							NowPlayingBlock.renderTicker( tickerInner, data.queue );
-						}
+						NowPlayingBlock.setQueue( data.queue, tickerInner );
 					} )
 					.catch( () => {} )
 					.finally( () => {
@@ -536,10 +597,7 @@ const NowPlayingBlock = {
 			} )
 				.then( ( res ) => res.json() )
 				.then( ( data ) => {
-					if ( data.queue ) {
-						NowPlayingBlock.queueCache = data.queue;
-						NowPlayingBlock.renderTicker( tickerInner, data.queue );
-					}
+					NowPlayingBlock.setQueue( data.queue, tickerInner );
 					if ( youtubeUrl ) {
 						const videoId = NowPlayingBlock.parseVideoId( youtubeUrl );
 						if ( videoId ) {
@@ -550,14 +608,8 @@ const NowPlayingBlock = {
 				.catch( () => {} );
 		} );
 
-		// Initial load, then start background polling to keep the cache fresh.
-		NowPlayingBlock.fetchQueue( restUrl, ( singers ) => {
-			// Render even if the first request failed, so the ticker scrolls (showing the empty message)
-			// and picks up the cache from the background poll on the next cycle.
-			NowPlayingBlock.queueCache = singers || [];
-			NowPlayingBlock.renderTicker( tickerInner, NowPlayingBlock.queueCache );
-		} );
-		NowPlayingBlock.startQueuePolling( restUrl );
+		// Initial load, then keep the cache fresh in the background.
+		NowPlayingBlock.startQueuePolling( restUrl, tickerInner );
 
 		// Start polling for admin-triggered actions (e.g. set-on-stage).
 		if ( actionsUrl && venueSlug ) {
