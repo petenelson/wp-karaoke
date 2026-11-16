@@ -146,9 +146,11 @@ Controlled by the block's **Show singer status & wait estimate** toggle (`showSt
 
 **Estimate log:** the first time a singer is shown a given queue position, the status endpoint adds a `_wpkq_estimate_log` meta row (`id`, `time`, `position`, `wait_minutes`, `avg_seconds`, `on_stage_remaining`). A 12-hour transient per singer/position prevents duplicate rows from polling. Each row is its own meta entry, so logging never writes to the queue meta.
 
+**Status checks:** every status response counts a check for each matched singer in a per-singer transient (`wpkq_chk_*`, 2-day TTL): `views` (page load, returning to the tab, or right after signup; the block sends `view=1`), `polls` (20-second background refreshes), and `first`/`last` check times. Transients are used instead of meta because polling would write to the database every 20 seconds. On reset the counts are copied into the snapshot's `status_checks` field (beside `queue`, so Night History's snapshot key is unchanged) and the transients are deleted.
+
 **Reset archive:** `DELETE /wpkq/v1/queue` saves a snapshot of the full queue plus pending signups as a `_wpkq_queue_archive` meta row (`archived_time`, `queue`) before clearing, then deletes estimate-log rows and snapshots older than 30 days (filter `wpkq_history_retention_days`). All JSON meta (queue, pending signups, log, archives) is written with `wp_slash()` so escaped quotes and backslashes survive WordPress's unslashing.
 
-**Wait estimate:** average song length = mean of `completed_time − stage_time` for the 10 most recent finished singers with plausible durations (60–900s); falls back to 300s (filter `wpkq_default_song_seconds`). Wait for position N = time remaining for the current on-stage singer (average minus elapsed, min 0) + (N − 1) × average, rounded up to minutes.
+**Wait estimate:** average song length = mean of `completed_time − stage_time` for the 10 most recent finished singers with plausible durations (60–900s); falls back to 300s (filter `wpkq_default_song_seconds`). Wait for position N = time remaining for the current on-stage singer (average minus elapsed, min 0) + (N − 1) × average, rounded to the nearest minute.
 
 ### REST API Interaction
 Submissions POST to `POST /wpkq/v1/queue/signup` (no auth required):
@@ -194,6 +196,6 @@ All routes use the namespace `wpkq/v1`. Routes that operate on a venue require a
 | DELETE | `/wpkq/v1/queue/singer/{id}` | `manage_options` | Remove a singer from the queue entirely. |
 | POST | `/wpkq/v1/queue/reorder` | `manage_options` | Reorder `in-the-queue` singers. Body: `{ slug, order: [id, id, ...] }`. |
 | POST | `/wpkq/v1/queue/signup` | Public | Public singer self-signup. Always sets `kj-received`. Returns `{ success: true, id, status_token }`. |
-| GET | `/wpkq/v1/queue/status` | Public | Status for private status tokens. Query: `slug`, `tokens` (comma-separated, max 5). Returns `{ success, singers: [ { token, song, artist, status, position, wait_minutes } ] }`. Unknown tokens are omitted. Public singer IDs are not accepted. |
-| GET | `/wpkq/v1/queue/report` | `manage_options` | Analysis dump for a venue: `queue` (all fields), `pending` signups, `estimate_log`, and `archives` (queue snapshots saved on reset). Works with application passwords. |
+| GET | `/wpkq/v1/queue/status` | Public | Status for private status tokens. Query: `slug`, `tokens` (comma-separated, max 5), `view` (optional, `1` for a page view, counted separately from polls). Returns `{ success, singers: [ { token, song, artist, status, position, wait_minutes } ] }`. Unknown tokens are omitted. Public singer IDs are not accepted. |
+| GET | `/wpkq/v1/queue/report` | `manage_options` | Analysis dump for a venue: `queue` (all fields), `pending` signups, `estimate_log`, `status_checks` (counts for current singers, keyed by singer ID), and `archives` (queue snapshots saved on reset, each with `status_checks`). Works with application passwords. |
 | POST | `/wpkq/v1/queue/advance` | Monitor cookie | Mark the current `on-stage` singer as `finished` and promote a singer by ID to `on-stage`. Used by the monitor ticker click handler. |

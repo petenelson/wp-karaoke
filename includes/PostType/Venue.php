@@ -411,29 +411,117 @@ class Venue {
 	/**
 	 * Save a snapshot of the queue (including pending signups) before it is reset.
 	 *
+	 * Status-check counts are stored beside the queue, not inside it, so the queue matches
+	 * the one Night History hashed for its snapshot key.
+	 *
 	 * @param int   $post_id       Post ID.
 	 * @param array $queue         Full singer queue.
 	 * @param int   $archived_time Snapshot time (defaults to now).
+	 * @param array $status_checks Status-check counts keyed by singer ID (see get_status_checks()).
 	 * @return bool True on success.
 	 */
-	public static function archive_queue( int $post_id, array $queue, int $archived_time = 0 ): bool {
+	public static function archive_queue( int $post_id, array $queue, int $archived_time = 0, array $status_checks = [] ): bool {
 		if ( empty( $queue ) ) {
 			return false;
+		}
+
+		$snapshot = [
+			'archived_time' => $archived_time ?: time(),
+			'queue'         => $queue,
+		];
+
+		if ( ! empty( $status_checks ) ) {
+			$snapshot['status_checks'] = $status_checks;
 		}
 
 		return (bool) add_post_meta(
 			$post_id,
 			self::QUEUE_ARCHIVE_META_KEY,
 			// Meta functions unslash values, so slash the JSON to keep its escapes intact.
-			wp_slash(
-				wp_json_encode(
-					[
-						'archived_time' => $archived_time ?: time(),
-						'queue'         => $queue,
-					]
-				)
-			)
+			wp_slash( wp_json_encode( $snapshot ) )
 		);
+	}
+
+	/**
+	 * Count a status-card check for a singer.
+	 *
+	 * Counts live in a per-singer transient (not post meta), because the status card refreshes
+	 * every 20 seconds and each refresh would otherwise write to the database. They are copied
+	 * into the queue snapshot on reset.
+	 *
+	 * @param int    $post_id   Post ID.
+	 * @param string $singer_id Singer ID.
+	 * @param bool   $is_view   True when the singer opened or returned to the page, false for a background refresh.
+	 * @param int    $time      Check time.
+	 */
+	public static function record_status_check( int $post_id, string $singer_id, bool $is_view, int $time ): void {
+		$key    = self::status_check_key( $post_id, $singer_id );
+		$checks = get_transient( $key );
+
+		if ( ! is_array( $checks ) ) {
+			$checks = [
+				'views' => 0,
+				'polls' => 0,
+				'first' => $time,
+				'last'  => $time,
+			];
+		}
+
+		++$checks[ $is_view ? 'views' : 'polls' ];
+		$checks['last'] = $time;
+
+		// Two days, so counts survive until a reset the next afternoon.
+		set_transient( $key, $checks, 2 * DAY_IN_SECONDS );
+	}
+
+	/**
+	 * Get status-check counts for the singers in a queue.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param array $queue   Singers.
+	 * @return array Keyed by singer ID: [ views, polls, first, last ]. Singers who never checked are left out.
+	 */
+	public static function get_status_checks( int $post_id, array $queue ): array {
+		$all = [];
+
+		foreach ( $queue as $singer ) {
+			$id = (string) ( $singer['id'] ?? '' );
+
+			if ( '' === $id || isset( $all[ $id ] ) ) {
+				continue;
+			}
+
+			$checks = get_transient( self::status_check_key( $post_id, $id ) );
+
+			if ( is_array( $checks ) ) {
+				$all[ $id ] = $checks;
+			}
+		}
+
+		return $all;
+	}
+
+	/**
+	 * Delete status-check counts for the given singers.
+	 *
+	 * @param int   $post_id    Post ID.
+	 * @param array $singer_ids Singer IDs.
+	 */
+	public static function delete_status_checks( int $post_id, array $singer_ids ): void {
+		foreach ( $singer_ids as $id ) {
+			delete_transient( self::status_check_key( $post_id, (string) $id ) );
+		}
+	}
+
+	/**
+	 * Transient key for a singer's status-check counts.
+	 *
+	 * @param int    $post_id   Post ID.
+	 * @param string $singer_id Singer ID.
+	 * @return string
+	 */
+	private static function status_check_key( int $post_id, string $singer_id ): string {
+		return 'wpkq_chk_' . md5( $post_id . '|' . $singer_id );
 	}
 
 	/**
