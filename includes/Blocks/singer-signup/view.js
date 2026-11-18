@@ -150,9 +150,10 @@ const SingerSignupBlock = {
 	/**
 	 * Fetch and render the status of this browser's signups.
 	 *
-	 * @param {Object} ctx Wrapper context.
+	 * @param {Object}  ctx    Wrapper context.
+	 * @param {boolean} isView True when the singer opened or returned to the page (counted separately from background polls).
 	 */
-	refreshStatus: async ( ctx ) => {
+	refreshStatus: async ( ctx, isView = false ) => {
 		const { statusEl, statusUrl, venueSlug } = ctx;
 		const requested = SingerSignupBlock.readSignupTokens( venueSlug );
 
@@ -171,7 +172,7 @@ const SingerSignupBlock = {
 
 		let data;
 		try {
-			const params   = new URLSearchParams( { slug: venueSlug, tokens: requested.join( ',' ) } );
+			const params   = new URLSearchParams( { slug: venueSlug, tokens: requested.join( ',' ), view: isView ? '1' : '0' } );
 			const response = await fetch( `${ statusUrl }?${ params }` );
 
 			if ( ! response.ok ) {
@@ -506,11 +507,11 @@ const SingerSignupBlock = {
 
 		// Singer status is enabled in the block settings: show any existing signups and keep them fresh.
 		if ( statusUrl && statusEl ) {
-			SingerSignupBlock.refreshStatus( ctx );
+			SingerSignupBlock.refreshStatus( ctx, true );
 
 			document.addEventListener( 'visibilitychange', () => {
 				if ( ! document.hidden && ctx.pollTimer ) {
-					SingerSignupBlock.refreshStatus( ctx );
+					SingerSignupBlock.refreshStatus( ctx, true );
 				}
 			} );
 		}

@@ -203,6 +203,12 @@ class Queue {
 							'sanitize_callback' => 'sanitize_text_field',
 							'description'       => __( 'Comma-separated list of private status tokens returned by signup.', 'wp-karaoke' ),
 						],
+						'view'   => [
+							'required'    => false,
+							'type'        => 'boolean',
+							'default'     => false,
+							'description' => __( 'True when the singer opened or returned to the page, false for a background refresh.', 'wp-karaoke' ),
+						],
 					]
 				),
 			]
@@ -689,7 +695,9 @@ class Queue {
 		// Keep a snapshot of the night for later analysis, plus a permanent summary for Night History.
 		$archived_time = time();
 		$full_queue    = array_merge( $result['queue'], Venue::get_new_singers( $post_id ) );
-		Venue::archive_queue( $post_id, $full_queue, $archived_time );
+		$status_checks = Venue::get_status_checks( $post_id, $full_queue );
+		Venue::archive_queue( $post_id, $full_queue, $archived_time, $status_checks );
+		Venue::delete_status_checks( $post_id, array_keys( $status_checks ) );
 		Night::create_from_queue( $post_id, $full_queue, $archived_time );
 		Venue::prune_history( $post_id );
 
@@ -1012,6 +1020,7 @@ class Queue {
 		$queue       = array_merge( $result['queue'], Venue::get_new_singers( $result['post_id'] ) );
 		$avg_seconds = $this->get_average_song_seconds( $queue );
 		$now         = time();
+		$is_view     = (bool) $request->get_param( 'view' );
 
 		// Time left for whoever is on stage right now.
 		$on_stage_remaining = 0;
@@ -1049,7 +1058,8 @@ class Queue {
 			if ( 'in-the-queue' === $status && isset( $positions[ $id ] ) ) {
 				$position     = $positions[ $id ];
 				$wait_seconds = $on_stage_remaining + ( ( $position - 1 ) * $avg_seconds );
-				$wait_minutes = (int) ceil( $wait_seconds / 60 );
+				// Nearest minute: rounding up made estimates run about a minute long on a real night.
+				$wait_minutes = (int) round( $wait_seconds / 60 );
 
 				$this->maybe_log_estimate(
 					$result['post_id'],
@@ -1063,6 +1073,8 @@ class Queue {
 					]
 				);
 			}
+
+			Venue::record_status_check( $result['post_id'], $id, $is_view, $now );
 
 			$singers[ $token ] = [
 				'token'        => $token,
@@ -1105,7 +1117,8 @@ class Queue {
 	 * GET /wpkq/v1/queue/report
 	 *
 	 * Admin-only data dump for analyzing a night: the current queue (all fields),
-	 * pending signups, wait-estimate log, and queue snapshots saved on reset.
+	 * pending signups, wait-estimate log, status-check counts for tonight's singers,
+	 * and queue snapshots saved on reset.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response|\WP_Error
@@ -1118,6 +1131,7 @@ class Queue {
 		}
 
 		$post_id = $result['post_id'];
+		$pending = Venue::get_new_singers( $post_id );
 
 		return rest_ensure_response(
 			[
@@ -1126,8 +1140,9 @@ class Queue {
 				'timezone'             => wp_timezone_string(),
 				'default_song_seconds' => $this->get_default_song_seconds(),
 				'queue'                => $result['queue'],
-				'pending'              => Venue::get_new_singers( $post_id ),
+				'pending'              => $pending,
 				'estimate_log'         => Venue::get_estimate_log( $post_id ),
+				'status_checks'        => Venue::get_status_checks( $post_id, array_merge( $result['queue'], $pending ) ),
 				'archives'             => Venue::get_queue_archives( $post_id ),
 			]
 		);
