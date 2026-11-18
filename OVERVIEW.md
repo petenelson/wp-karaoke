@@ -10,7 +10,7 @@ The plugin has three parts that share one queue per venue:
 | **Queue Manager** | The KJ | WordPress admin → Karaoke → Manage Queue |
 | **Now Playing** block | The room, on a TV or projector | A password-protected page |
 
-> Screenshots use the plugin's built-in fake singers (the same ones the **Load Fake Singers** button adds) and a made-up venue ("The Rusty Mic").
+> Screenshots use the plugin's built-in fake singers (the same ones the **Load Fake Singers** button adds) and a made-up venue ("Hadley's Hope").
 
 ---
 
